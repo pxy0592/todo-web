@@ -116,6 +116,24 @@ test('writes a version-one envelope with the supplied tasks', () => {
   }]);
 });
 
+test('normalizes tasks before writing by trimming text and dropping invalid duplicates', () => {
+  const storage = memoryStorage();
+  const tasks = [
+    { id: 'a', text: '  A  ', completed: false },
+    { id: 'a', text: 'duplicate', completed: true },
+    { id: 'bad', text: '  ', completed: false },
+    { id: 'b', text: ' B ', completed: true },
+    { id: '', text: 'missing id', completed: false },
+    { id: 'c', text: 'missing completion' },
+  ];
+
+  assert.deepEqual(saveTasks(storage, tasks), { ok: true });
+  assert.deepEqual(JSON.parse(storage.getItem(STORAGE_KEY)), {
+    version: 1,
+    tasks: [taskA, taskB],
+  });
+});
+
 test('reports a warning instead of throwing when writing throws', () => {
   const storage = memoryStorage({}, {
     setItemError: new Error('write failed'),

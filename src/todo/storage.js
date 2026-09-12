@@ -71,7 +71,7 @@ export function saveTasks(storage, tasks) {
   try {
     const serialized = JSON.stringify({
       version: STORAGE_VERSION,
-      tasks,
+      tasks: normalizeTasks(tasks),
     });
     storage.setItem(STORAGE_KEY, serialized);
     return { ok: true };
