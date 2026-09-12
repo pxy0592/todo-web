@@ -10,8 +10,8 @@
 
 ## 3. Single-Page UI
 
-- [ ] 3.1 Build semantic markup for the task form and task-list container with accessible labels and button names; verify the rendered page exposes the input, “添加” button, task rows, checkboxes, and “删除” controls.
-- [ ] 3.2 Implement UI rendering with safe text insertion and completed-task styling; verify completed text has a deletion visual and user task text is not interpreted as HTML.
+- [x] 3.1 Build semantic markup for the task form and task-list container with accessible labels and button names; verify the rendered page exposes the input, “添加” button, task rows, checkboxes, and “删除” controls.
+- [x] 3.2 Implement UI rendering with safe text insertion and completed-task styling; verify completed text has a deletion visual and user task text is not interpreted as HTML.
 - [ ] 3.3 Connect form submission, Enter-key submission, checkbox changes, and delete actions through event delegation; verify browser integration tests cover add, blank submission, complete/uncomplete, and delete behavior.
 - [ ] 3.4 Load persisted tasks during page initialization and save state after every mutation; verify an end-to-end refresh restores text and completion state and does not restore deleted tasks.
 
