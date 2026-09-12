@@ -6,7 +6,7 @@
 ## 2. Task Model and Persistence
 
 - [x] 2.1 Implement the task model and pure operations for creation, completion toggling, and ID-based deletion; verify unit tests cover non-empty input, blank input rejection, status transitions, unique IDs, and preserving other tasks.
-- [ ] 2.2 Implement versioned `localStorage` serialization, validation, loading, and saving; verify tests cover initial empty state, valid restoration, invalid JSON/shape recovery, and persistence after each mutation.
+- [x] 2.2 Implement versioned `localStorage` serialization, validation, loading, and saving; verify tests cover initial empty state, valid restoration, invalid JSON/shape recovery, and persistence after each mutation.
 
 ## 3. Single-Page UI
 
