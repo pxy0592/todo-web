@@ -1,7 +1,7 @@
 ## 1. Project Setup
 
-- [ ] 1.1 Establish the minimal static web app structure (`index.html`, `src/`, `styles/` or equivalent) and add documented local start/test scripts; verify the page can be served locally.
-- [ ] 1.2 Add the chosen lightweight test setup without introducing a UI framework; verify the test runner executes a sample project test.
+- [x] 1.1 Establish the minimal static web app structure (`index.html`, `src/`, `styles/` or equivalent) and add documented local start/test scripts; verify the page can be served locally.
+- [x] 1.2 Add the chosen lightweight test setup without introducing a UI framework; verify the test runner executes a sample project test.
 
 ## 2. Task Model and Persistence
 
