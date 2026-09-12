@@ -7,7 +7,28 @@
     <link rel="stylesheet" href="./styles/app.css" />
   </head>
   <body>
-    <main id="app"></main>
+    <main id="app" class="todo-app">
+      <header class="app-header">
+        <h1>待办事项</h1>
+        <p>记录今天要完成的事情。</p>
+      </header>
+
+      <form id="task-form" class="task-form">
+        <label for="task-input">任务</label>
+        <div class="task-entry">
+          <input id="task-input" name="task" type="text" autocomplete="off" />
+          <button type="submit">添加</button>
+        </div>
+      </form>
+
+      <section class="task-section" aria-labelledby="task-list-heading">
+        <h2 id="task-list-heading">任务列表</h2>
+        <ul id="task-list" class="task-list"></ul>
+        <p id="empty-state" class="empty-state" role="status" aria-label="任务列表状态">暂无任务</p>
+      </section>
+
+      <p id="status" class="status" role="status" aria-live="polite" aria-atomic="true" aria-label="操作状态" hidden></p>
+    </main>
     <script type="module" src="./src/main.js"></script>
   </body>
 </html>
