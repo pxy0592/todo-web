@@ -43,8 +43,9 @@ export function renderTasks({ listElement, emptyStateElement }, tasks) {
 export function bindTodoEvents({ form, input, listElement, onAdd, onToggle, onRemove }) {
   const handleSubmit = (event) => {
     event.preventDefault();
-    onAdd(input.value);
-    input.value = '';
+    if (onAdd(input.value.trim())) {
+      input.value = '';
+    }
   };
 
   const handleListChange = (event) => {
