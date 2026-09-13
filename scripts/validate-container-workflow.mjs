@@ -212,21 +212,31 @@ function isBuildPushAction(step) {
   return /^docker\/build-push-action@/.test(step?.uses ?? "");
 }
 
+function hasBuildxPushFlag(command) {
+  const pushFlags = command.matchAll(/(?:^|\s)--push(?:=([^\s]+))?(?=\s|$)/gi);
+
+  return [...pushFlags].some(
+    (match) => !match[1] || match[1].toLowerCase() !== "false",
+  );
+}
+
+function hasBuildxRegistryOutput(command) {
+  return /(?:^|\s)(?:--output(?:=|\s+)|-o(?:=|\s*)?)(?:type\s*=\s*)?registry(?=,|\s|$)/i.test(
+    command,
+  );
+}
+
 function isImagePublishCommand(command) {
   if (typeof command !== "string") {
     return false;
   }
 
   const invokesBuildx = /\bdocker\s+buildx\s+build\b/i.test(command);
-  const pushesWithBuildx = /(?:^|\s)--push(?=\s|$)/i.test(command);
-  const exportsRegistryWithBuildx =
-    /(?:^|\s)(?:--output|-o)(?:=|\s+)type\s*=\s*registry(?=,|\s|$)/i.test(
-      command,
-    );
 
   return (
     /\bdocker\s+(?:login|push)\b/i.test(command) ||
-    (invokesBuildx && (pushesWithBuildx || exportsRegistryWithBuildx))
+    (invokesBuildx &&
+      (hasBuildxPushFlag(command) || hasBuildxRegistryOutput(command)))
   );
 }
 

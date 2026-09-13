@@ -292,6 +292,25 @@ test("rejects an additional build-push action regardless of action version", () 
   );
 });
 
+test("rejects equivalent Docker buildx publish run commands", () => {
+  for (const command of [
+    "docker buildx build --push=true .",
+    "docker buildx build --push=1 .",
+    "docker buildx build -otype=registry,name=ghcr.io/example/todo-web .",
+    "docker buildx build -o registry,name=ghcr.io/example/todo-web .",
+    "docker buildx build --output=type=registry,name=ghcr.io/example/todo-web .",
+    "docker buildx build --output=registry,name=ghcr.io/example/todo-web .",
+  ]) {
+    assertRejected(
+      workflowWithImage({
+        from: "      - uses: docker/setup-buildx-action@v3",
+        to: `      - uses: docker/setup-buildx-action@v3\n      - run: ${command}`,
+      }),
+      "image-job-steps",
+    );
+  }
+});
+
 test("rejects Docker buildx commands that push or export to a registry", () => {
   for (const command of [
     "docker buildx build --push .",
