@@ -603,6 +603,24 @@ test("allows only GITHUB_TOKEN expressions in password or token contexts", () =>
   assert.deepEqual(resultFor(validWorkflow), { ok: true });
 });
 
+test("rejects secret expressions in non-token-named environments without exposing them", () => {
+  const unsafeWorkflows = [
+    workflowWithPublishEnvironment(
+      "      DEPLOY_KEY: ${{ secrets.DEPLOY_KEY }}",
+    ),
+    workflowWithPublishEnvironment(
+      "      REGISTRY_CREDENTIAL: ${{ secrets.REGISTRY_CREDENTIAL }}",
+    ),
+  ];
+
+  for (const workflow of unsafeWorkflows) {
+    const result = resultFor(workflow);
+
+    assert.deepEqual(result, { ok: false, errors: ["credential-safety"] });
+    assert.equal(JSON.stringify(result).includes("secrets."), false);
+  }
+});
+
 test("rejects hard-coded camelCase credential keys without exposing values", () => {
   const secret = "not-a-real-camel-case-credential";
   const unsafeWorkflows = [

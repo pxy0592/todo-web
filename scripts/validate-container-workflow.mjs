@@ -22,6 +22,7 @@ const requiredNeeds = {
 const canonicalPublishGuard =
   "github.event_name=='push'&&github.ref=='refs/heads/main'";
 const allowedGitHubToken = /^\s*\$\{\{\s*secrets\.GITHUB_TOKEN\s*\}\}\s*$/;
+const secretExpression = /\$\{\{\s*secrets\.[^}]*\}\}/i;
 const credentialKey =
   /(?:^|_)(?:pat|personal_access_token|token|password)(?:_|$)/;
 const credentialValue =
@@ -393,6 +394,14 @@ function normalizeCredentialKey(key) {
 }
 
 function hasForbiddenCredential(value, key = "") {
+  if (
+    typeof value === "string" &&
+    secretExpression.test(value) &&
+    !allowedGitHubToken.test(value)
+  ) {
+    return true;
+  }
+
   if (typeof value === "string" && credentialValue.test(value)) {
     return true;
   }
