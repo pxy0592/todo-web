@@ -1,7 +1,7 @@
 ## 1. Container Image
 
 - [x] 1.1 Add a `.dockerignore` that excludes `.git`, `node_modules`, `dist`, test results, local environment files, caches, OpenSpec artifacts, and agent work directories; verify `docker build` does not send excluded local content in the build context.
-- [ ] 1.2 Create a multi-stage root `Dockerfile` using a pinned minimal official Node.js Alpine LTS image; run `npm ci` and `npm run build` in the builder stage, copy only `dist/` into the runtime stage, and verify `docker build -t todo-web:local .` succeeds.
+- [x] 1.2 Create a multi-stage root `Dockerfile` using a pinned minimal official Node.js Alpine LTS image; run `npm ci` and `npm run build` in the builder stage, copy only `dist/` into the runtime stage, and verify `docker build -t todo-web:local .` succeeds.
 - [x] 1.3 Configure the runtime image to serve the built static application on container port `4173` without requiring host Node.js or Python; verify `docker run --rm -d --name todo-web-smoke -p 4173:4173 todo-web:local`, an HTTP request to `/`, and cleanup with `docker rm -f todo-web-smoke`.
 
 ## 2. Docker Compose Runtime
