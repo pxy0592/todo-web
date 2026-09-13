@@ -1,3 +1,9 @@
+const MAX_ID_ALLOCATION_ATTEMPTS = 10;
+
+function isValidTaskId(id) {
+  return typeof id === "string" && id.trim().length > 0;
+}
+
 export function createTask(text, idFactory) {
   const normalizedText = text.trim();
 
@@ -5,8 +11,13 @@ export function createTask(text, idFactory) {
     return null;
   }
 
+  const id = idFactory();
+  if (!isValidTaskId(id)) {
+    return null;
+  }
+
   return {
-    id: idFactory(),
+    id,
     text: normalizedText,
     completed: false,
   };
@@ -21,8 +32,21 @@ export function addTask(tasks, text, idFactory) {
 
   const taskIds = new Set(tasks.map(({ id }) => id));
   let taskId = task.id;
-  while (taskIds.has(taskId)) {
+
+  for (
+    let attempt = 0;
+    taskIds.has(taskId) && attempt < MAX_ID_ALLOCATION_ATTEMPTS;
+    attempt += 1
+  ) {
     taskId = idFactory();
+    if (!isValidTaskId(taskId)) {
+      return [...tasks];
+    }
+  }
+
+  // A pathological factory cannot block the caller: reject after the finite retry budget.
+  if (taskIds.has(taskId)) {
+    return [...tasks];
   }
 
   return [...tasks, { ...task, id: taskId }];

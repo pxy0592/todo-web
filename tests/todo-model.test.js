@@ -119,3 +119,49 @@ test("allocates a unique ID when the injected factory collides", () => {
     { id: "new-task", text: "New task", completed: false },
   ]);
 });
+
+test("rejects non-string and empty generated IDs without creating tasks", () => {
+  const original = [{ id: "existing", text: "Existing", completed: false }];
+
+  assert.equal(
+    createTask("Invalid ID", () => 42),
+    null,
+  );
+  assert.equal(
+    createTask("Empty ID", () => ""),
+    null,
+  );
+  assert.deepEqual(
+    addTask(original, "Invalid ID", () => 42),
+    original,
+  );
+  assert.deepEqual(
+    addTask(original, "Empty ID", () => ""),
+    original,
+  );
+});
+
+test("returns a safe no-op after repeated ID collisions", () => {
+  const original = [{ id: "existing", text: "Existing", completed: false }];
+
+  const result = addTask(original, "Never added", () => "existing");
+
+  assert.deepEqual(result, original);
+  assert.notEqual(result, original);
+});
+
+test("preserves future task attributes through list operations", () => {
+  const original = [
+    { id: "a", text: "A", completed: false, priority: "high" },
+    { id: "b", text: "B", completed: true, priority: "low" },
+  ];
+
+  const toggled = toggleTask(original, "a");
+  const removed = removeTask(toggled, "b");
+
+  assert.deepEqual(removed, [
+    { id: "a", text: "A", completed: true, priority: "high" },
+  ]);
+  assert.equal(original[0].completed, false);
+  assert.equal(original[0].priority, "high");
+});
