@@ -214,6 +214,32 @@ test("allows only GITHUB_TOKEN expressions in password or token contexts", () =>
   assert.deepEqual(resultFor(workflowWithAllowedCredentials), { ok: true });
 });
 
+test("rejects hard-coded camelCase credential keys without exposing values", () => {
+  const secret = "not-a-real-camel-case-credential";
+  const unsafeWorkflows = [
+    workflowWith({
+      from: "      packages: write",
+      to: `      packages: write
+    env:
+      registryPassword: ${secret}`,
+    }),
+    workflowWith({
+      from: "      packages: write",
+      to: `      packages: write
+    env:
+      accessToken: ${secret}`,
+    }),
+  ];
+
+  for (const workflow of unsafeWorkflows) {
+    const result = resultFor(workflow);
+
+    assert.equal(result.ok, false);
+    assert.ok(result.errors.includes("credential-safety"));
+    assert.equal(JSON.stringify(result).includes(secret), false);
+  }
+});
+
 test("rejects PAT and token-shaped credentials without exposing values", () => {
   const secret = "ghp_not-a-real-secret";
   const unsafeWorkflows = [

@@ -23,7 +23,7 @@ const canonicalPublishGuard =
   "github.event_name=='push'&&github.ref=='refs/heads/main'";
 const allowedGitHubToken = /^\s*\$\{\{\s*secrets\.GITHUB_TOKEN\s*\}\}\s*$/;
 const credentialKey =
-  /(?:^|[_-])(?:pat|personal[_-]?access[_-]?token|token|password)(?:$|[_-])/i;
+  /(?:^|_)(?:pat|personal_access_token|token|password)(?:_|$)/;
 const credentialValue =
   /(?:\b(?:pat|personal[_-]?access[_-]?token)\b|\bgithub_pat_[A-Za-z0-9_]+\b|\bgh[pousr]_[A-Za-z0-9_]+\b)/i;
 
@@ -149,12 +149,21 @@ function hasSafePermissions(workflow) {
   );
 }
 
+function normalizeCredentialKey(key) {
+  return key
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/([A-Z])([A-Z][a-z])/g, "$1_$2")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
 function hasForbiddenCredential(value, key = "") {
   if (typeof value === "string" && credentialValue.test(value)) {
     return true;
   }
 
-  if (credentialKey.test(key)) {
+  if (credentialKey.test(normalizeCredentialKey(key))) {
     return typeof value !== "string" || !allowedGitHubToken.test(value);
   }
 
