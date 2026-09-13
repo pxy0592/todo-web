@@ -87,7 +87,7 @@ npm run check
 ```
 
 - `npm run test:unit` 运行 Node.js 内置测试，覆盖任务模型和存储适配器。
-- `npm run test:coverage` 运行相同单元测试并输出覆盖率报告；Node.js 会以 90% 作为行、分支和函数覆盖率的最低门槛。
+- `npm run test:coverage` 运行单元测试以及确定性的容器静态契约验证测试（不包含依赖 Docker 的 Compose 运行时或容器 smoke 测试）并输出覆盖率报告；Node.js 会以 90% 作为行、分支和函数覆盖率的最低门槛。
 - `npx playwright install chromium` 安装 Playwright 使用的 Chromium 浏览器；在新环境中只需首次执行。
 - `npm run test:e2e` 使用 Playwright 启动或复用本地静态服务器，验证真实浏览器中的页面、交互、刷新恢复和窄视口可用性。
 - `npm run build` 将 `index.html`、`src/` 和 `styles/` 复制到可部署的静态目录 `dist/`。

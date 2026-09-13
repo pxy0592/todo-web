@@ -8,6 +8,8 @@ const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
+const requiredNodeAlpineImage =
+  "node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32";
 const requiredDockerIgnoreEntries = [
   ".git/",
   "node_modules/",
@@ -56,7 +58,12 @@ async function readRequiredFile(root, fileName, errors, errorName) {
 
 function isRequiredDockerfile(source) {
   const stages = [
-    ...source.matchAll(/^FROM\s+node:\d+-alpine\s+AS\s+(\w+)\s*$/gim),
+    ...source.matchAll(
+      new RegExp(
+        `^FROM\\s+${requiredNodeAlpineImage}\\s+AS\\s+(\\w+)\\s*$`,
+        "gim",
+      ),
+    ),
   ];
 
   return (

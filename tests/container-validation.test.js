@@ -45,6 +45,40 @@ test("reports a missing static delivery input without throwing", async () => {
   }
 });
 
+test("rejects tag-only node:22-alpine Dockerfile stages", async () => {
+  const root = await createFixture();
+
+  try {
+    const dockerfilePath = path.join(root, "Dockerfile");
+    const source = await readFile(dockerfilePath, "utf8");
+    await writeFile(dockerfilePath, source.replace(/@sha256:[a-f0-9]+/g, ""));
+
+    const result = await validateStaticContainerContracts(root);
+
+    assert.deepEqual(result, {
+      ok: false,
+      errors: ["dockerfile-runtime-contract"],
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("coverage runs deterministic container validator test files", async () => {
+  const packageJson = JSON.parse(
+    await readFile(path.join(projectRoot, "package.json"), "utf8"),
+  );
+
+  assert.match(
+    packageJson.scripts["test:coverage"],
+    /tests\/container-workflow\.test\.js/,
+  );
+  assert.match(
+    packageJson.scripts["test:coverage"],
+    /tests\/container-validation\.test\.js/,
+  );
+});
+
 test("rejects a Dockerfile that weakens the required runtime contracts", async () => {
   const root = await createFixture();
 
