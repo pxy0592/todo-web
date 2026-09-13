@@ -6,9 +6,14 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
-import { startProductionServer, startServer } from "../scripts/serve.mjs";
+import {
+  getProductionServerOptions,
+  startProductionServer,
+  startServer,
+} from "../scripts/serve.mjs";
 
 let fixtureDirectory;
+let outsideDirectory;
 let server;
 let address;
 
@@ -48,6 +53,9 @@ before(async () => {
   fixtureDirectory = await mkdtemp(
     path.join(os.tmpdir(), "todo-static-server-"),
   );
+  outsideDirectory = await mkdtemp(
+    path.join(os.tmpdir(), "todo-static-server-outside-"),
+  );
   await mkdir(path.join(fixtureDirectory, "assets"));
   await mkdir(path.join(fixtureDirectory, "private"));
   await writeFile(path.join(fixtureDirectory, "index.html"), "<h1>Todo</h1>");
@@ -65,6 +73,12 @@ before(async () => {
     path.join(fixtureDirectory, "index.html"),
     path.join(fixtureDirectory, "linked.html"),
   );
+  await writeFile(path.join(outsideDirectory, "secret.txt"), "outside secret");
+  await symlink(
+    outsideDirectory,
+    path.join(fixtureDirectory, "escaped-directory"),
+    "dir",
+  );
 
   ({ address, server } = await startServer({
     host: "127.0.0.1",
@@ -78,6 +92,7 @@ afterEach(() => assert.equal(server.listening, true));
 after(async () => {
   await close(server);
   await rm(fixtureDirectory, { force: true, recursive: true });
+  await rm(outsideDirectory, { force: true, recursive: true });
 });
 
 test("serves index.html for the root request", async () => {
@@ -114,6 +129,13 @@ test("rejects missing and traversal-shaped paths", async () => {
   assert.equal((await request("/%2e%2e%2fpackage.json")).statusCode, 404);
 });
 
+test("rejects a path that resolves outside the static root", async () => {
+  const response = await request(`//${outsideDirectory.slice(1)}/secret.txt`);
+
+  assert.equal(response.statusCode, 404);
+  assert.doesNotMatch(response.body, /outside secret/);
+});
+
 test("rejects null bytes without exposing a filesystem error", async () => {
   const response = await request("/%00secret.txt");
 
@@ -130,6 +152,14 @@ test("does not list directories or serve symbolic links", async () => {
   assert.equal(linkResponse.statusCode, 404);
 });
 
+test("rejects an intermediate symlink directory that escapes the static root", async () => {
+  const response = await request("/escaped-directory/secret.txt");
+
+  assert.equal(response.statusCode, 404);
+  assert.doesNotMatch(response.body, /outside secret/);
+  assert.doesNotMatch(response.body, new RegExp(outsideDirectory));
+});
+
 test("closes a started server cleanly", async () => {
   const temporaryServer = await startServer({
     host: "127.0.0.1",
@@ -140,6 +170,19 @@ test("closes a started server cleanly", async () => {
   await close(temporaryServer.server);
 
   assert.equal(temporaryServer.server.listening, false);
+});
+
+test("uses the container host, port, and sibling dist directory by default", () => {
+  const options = getProductionServerOptions({
+    environment: {},
+    scriptUrl: "file:///app/serve.mjs",
+  });
+
+  assert.deepEqual(options, {
+    host: "0.0.0.0",
+    port: 4173,
+    rootDirectory: "/app/dist",
+  });
 });
 
 test("closes the production server on SIGTERM", async () => {
@@ -159,6 +202,29 @@ test("closes the production server on SIGTERM", async () => {
     temporaryServer.server.once("close", resolve);
   });
   signals.emit("SIGTERM");
+  await closedServer;
+
+  assert.equal(closed, true);
+  assert.equal(temporaryServer.server.listening, false);
+});
+
+test("closes the production server on SIGINT", async () => {
+  const signals = new EventEmitter();
+  let closed = false;
+  const temporaryServer = await startProductionServer({
+    host: "127.0.0.1",
+    onClose: () => {
+      closed = true;
+    },
+    port: 0,
+    rootDirectory: fixtureDirectory,
+    signals,
+  });
+
+  const closedServer = new Promise((resolve) => {
+    temporaryServer.server.once("close", resolve);
+  });
+  signals.emit("SIGINT");
   await closedServer;
 
   assert.equal(closed, true);

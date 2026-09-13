@@ -1,5 +1,5 @@
 import { createServer } from "node:http";
-import { lstat, readFile } from "node:fs/promises";
+import { lstat, readFile, realpath } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -52,6 +52,10 @@ function resolveStaticPath(rootDirectory, requestUrl) {
   return { filePath };
 }
 
+function isWithin(rootPath, filePath) {
+  return filePath === rootPath || filePath.startsWith(`${rootPath}${path.sep}`);
+}
+
 async function serveStaticFile(rootDirectory, requestUrl, response) {
   const resolvedPath = resolveStaticPath(rootDirectory, requestUrl);
   if (resolvedPath.statusCode) {
@@ -66,18 +70,22 @@ async function serveStaticFile(rootDirectory, requestUrl, response) {
       return;
     }
 
-    const body = await readFile(resolvedPath.filePath);
-    response.writeHead(200, {
-      "Content-Type": contentTypeFor(resolvedPath.filePath),
-    });
-    response.end(body);
-  } catch (error) {
-    if (error?.code === "ENOENT" || error?.code === "ENOTDIR") {
+    const [rootPath, filePath] = await Promise.all([
+      realpath(rootDirectory),
+      realpath(resolvedPath.filePath),
+    ]);
+    if (!isWithin(rootPath, filePath)) {
       response.writeHead(404).end();
       return;
     }
 
-    response.writeHead(500).end();
+    const body = await readFile(filePath);
+    response.writeHead(200, {
+      "Content-Type": contentTypeFor(filePath),
+    });
+    response.end(body);
+  } catch {
+    response.writeHead(404).end();
   }
 }
 
@@ -95,9 +103,22 @@ export function startServer({ rootDirectory, port, host }) {
   });
 }
 
+export function getProductionServerOptions({
+  environment = process.env,
+  scriptUrl = import.meta.url,
+} = {}) {
+  const configuredPort = Number.parseInt(environment.PORT || "4173", 10);
+
+  return {
+    host: "0.0.0.0",
+    port: Number.isNaN(configuredPort) ? 4173 : configuredPort,
+    rootDirectory: path.resolve(path.dirname(fileURLToPath(scriptUrl)), "dist"),
+  };
+}
+
 export async function startProductionServer({
   host = "0.0.0.0",
-  onClose = () => {},
+  onClose,
   port = 4173,
   rootDirectory,
   signals = process,
@@ -115,13 +136,9 @@ const isMainModule =
   fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 
 if (isMainModule) {
-  const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
-  const rootDirectory = path.resolve(scriptDirectory, "..", "dist");
-  const port = Number.parseInt(process.env.PORT || "4173", 10);
   const startedServer = await startProductionServer({
-    port: Number.isNaN(port) ? 4173 : port,
-    rootDirectory,
-    onClose: () => process.exit(0),
+    ...getProductionServerOptions(),
+    onClose: process.exit.bind(process, 0),
   });
 
   console.log(`Serving static files on port ${startedServer.address.port}`);
