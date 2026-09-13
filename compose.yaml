@@ -1,0 +1,8 @@
+services:
+  todo-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: todo-web:local
+    ports:
+      - "${TODO_WEB_PORT:-4173}:4173"
