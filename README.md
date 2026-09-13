@@ -35,7 +35,7 @@ npm run check
 ```
 
 - `npm run test:unit` 运行 Node.js 内置测试，覆盖任务模型和存储适配器。
-- `npm run test:coverage` 运行相同单元测试并输出覆盖率报告；本实现的模型与存储单元覆盖率达到至少 90%。
+- `npm run test:coverage` 运行相同单元测试并输出覆盖率报告；Node.js 会以 90% 作为行、分支和函数覆盖率的最低门槛。
 - `npx playwright install chromium` 安装 Playwright 使用的 Chromium 浏览器；在新环境中只需首次执行。
 - `npm run test:e2e` 使用 Playwright 启动或复用本地静态服务器，验证真实浏览器中的页面、交互、刷新恢复和窄视口可用性。
 - `npm run build` 将 `index.html`、`src/` 和 `styles/` 复制到可部署的静态目录 `dist/`。
@@ -68,7 +68,7 @@ npm run check
 }
 ```
 
-读取时，缺失数据、无法解析的 JSON、不支持的版本、错误的 envelope 或无效任务记录都会安全地恢复为空列表；同一数组中的有效任务仍可保留。读取或写入 `localStorage` 失败时，页面不会崩溃：当前会话继续使用内存状态，并显示非阻塞的状态提示。写入失败不会撤销已经完成的当前页面操作。
+读取时，缺失数据、无法解析的 JSON、不支持的版本或错误的 envelope 会安全地恢复为空列表；单条无效任务记录会被丢弃，同一数组中的有效任务仍可保留。读取或写入 `localStorage` 失败时，页面不会崩溃：当前会话继续使用内存状态，并显示非阻塞的状态提示。写入失败不会撤销已经完成的当前页面操作。
 
 ## 非目标与扩展边界
 

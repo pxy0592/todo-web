@@ -141,6 +141,7 @@ test.describe("todo interactions and persistence", () => {
     await expect(
       page.getByRole("checkbox", { name: "购买牛奶" }),
     ).toBeChecked();
+    await expect(page.getByRole("listitem")).toHaveClass(/completed/);
   });
 
   test("submits a task with Enter", async ({ page }) => {
