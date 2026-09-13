@@ -282,6 +282,31 @@ test("rejects a second build-push action that pushes the image", () => {
   );
 });
 
+test("rejects an additional build-push action regardless of action version", () => {
+  assertRejected(
+    workflowWithImage({
+      from: "      - uses: actions/upload-artifact@v4\n        with:\n          name: todo-web-image-${{ github.sha }}",
+      to: "      - uses: docker/build-push-action@v5\n        with:\n          push: true\n      - uses: actions/upload-artifact@v4\n        with:\n          name: todo-web-image-${{ github.sha }}",
+    }),
+    "image-job-steps",
+  );
+});
+
+test("rejects Docker buildx commands that push or export to a registry", () => {
+  for (const command of [
+    "docker buildx build --push .",
+    "docker buildx build --output type=registry .",
+  ]) {
+    assertRejected(
+      workflowWithImage({
+        from: "      - uses: docker/setup-buildx-action@v3",
+        to: `      - uses: docker/setup-buildx-action@v3\n      - run: ${command}`,
+      }),
+      "image-job-steps",
+    );
+  }
+});
+
 test("requires image artifact uploads to fail when no tarball is exported", () => {
   const imageArtifactStart = validWorkflow.indexOf(
     "          name: todo-web-image-${{ github.sha }}",

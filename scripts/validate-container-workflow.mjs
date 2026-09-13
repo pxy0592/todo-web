@@ -208,14 +208,34 @@ function hasRequiredMetadataRules(tags) {
   );
 }
 
+function isBuildPushAction(step) {
+  return /^docker\/build-push-action@/.test(step?.uses ?? "");
+}
+
+function isImagePublishCommand(command) {
+  if (typeof command !== "string") {
+    return false;
+  }
+
+  const invokesBuildx = /\bdocker\s+buildx\s+build\b/i.test(command);
+  const pushesWithBuildx = /(?:^|\s)--push(?=\s|$)/i.test(command);
+  const exportsRegistryWithBuildx =
+    /(?:^|\s)(?:--output|-o)(?:=|\s+)type\s*=\s*registry(?=,|\s|$)/i.test(
+      command,
+    );
+
+  return (
+    /\bdocker\s+(?:login|push)\b/i.test(command) ||
+    (invokesBuildx && (pushesWithBuildx || exportsRegistryWithBuildx))
+  );
+}
+
 function hasRequiredImageSteps(job) {
   const steps = asList(job?.steps);
   const metadataStep = steps.find(
     (step) => step?.uses === "docker/metadata-action@v5",
   );
-  const buildSteps = steps.filter(
-    (step) => step?.uses === "docker/build-push-action@v6",
-  );
+  const buildSteps = steps.filter(isBuildPushAction);
   const [buildStep] = buildSteps;
 
   return (
@@ -225,6 +245,7 @@ function hasRequiredImageSteps(job) {
     metadataStep?.with?.images === "ghcr.io/${{ github.repository }}" &&
     hasRequiredMetadataRules(metadataStep?.with?.tags) &&
     buildSteps.length === 1 &&
+    buildStep?.uses === "docker/build-push-action@v6" &&
     buildStep?.with?.context === "." &&
     buildStep?.with?.file === "./Dockerfile" &&
     buildStep?.with?.tags === "${{ steps.meta.outputs.tags }}" &&
@@ -235,8 +256,7 @@ function hasRequiredImageSteps(job) {
     !steps.some(
       (step) =>
         step?.uses?.startsWith("docker/login-action@") ||
-        (typeof step?.run === "string" &&
-          /\bdocker\s+(?:login|push)\b/.test(step.run)),
+        isImagePublishCommand(step?.run),
     )
   );
 }
