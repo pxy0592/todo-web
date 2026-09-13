@@ -8,9 +8,11 @@
     "test:coverage": "node --experimental-test-coverage --test tests/todo-*.test.js tests/smoke.test.js",
     "test:e2e": "playwright test",
     "build": "node scripts/build.mjs",
-    "check": "npm run test:unit && npm run build"
+    "format:check": "prettier --check .",
+    "check": "npm run format:check && npm run test:unit && npm run build"
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.0"
+    "@playwright/test": "^1.55.0",
+    "prettier": "^3.6.2"
   }
 }

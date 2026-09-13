@@ -1,13 +1,13 @@
-import { addTask, removeTask, toggleTask } from './todo/model.js';
-import { loadTasks, saveTasks } from './todo/storage.js';
-import { bindTodoEvents, renderTasks } from './todo/ui.js';
+import { addTask, removeTask, toggleTask } from "./todo/model.js";
+import { loadTasks, saveTasks } from "./todo/storage.js";
+import { bindTodoEvents, renderTasks } from "./todo/ui.js";
 
 const elements = {
-  form: document.querySelector('#task-form'),
-  input: document.querySelector('#task-input'),
-  listElement: document.querySelector('#task-list'),
-  emptyStateElement: document.querySelector('#empty-state'),
-  statusElement: document.querySelector('#status'),
+  form: document.querySelector("#task-form"),
+  input: document.querySelector("#task-input"),
+  listElement: document.querySelector("#task-list"),
+  emptyStateElement: document.querySelector("#empty-state"),
+  statusElement: document.querySelector("#status"),
 };
 
 let tasks = [];
@@ -27,10 +27,12 @@ function createMemoryStorage() {
 function acquireStorage() {
   try {
     const candidate = window.localStorage;
-    if (candidate
-      && typeof candidate.getItem === 'function'
-      && typeof candidate.setItem === 'function') {
-      return { storage: candidate, warning: '' };
+    if (
+      candidate &&
+      typeof candidate.getItem === "function" &&
+      typeof candidate.setItem === "function"
+    ) {
+      return { storage: candidate, warning: "" };
     }
   } catch {
     // Fall through to the in-memory session storage below.
@@ -38,14 +40,14 @@ function acquireStorage() {
 
   return {
     storage: createMemoryStorage(),
-    warning: 'Unable to access saved tasks.',
+    warning: "Unable to access saved tasks.",
   };
 }
 
 const acquiredStorage = acquireStorage();
 const storage = acquiredStorage.storage;
 
-function setStatus(message = '') {
+function setStatus(message = "") {
   elements.statusElement.textContent = message;
   elements.statusElement.hidden = !message;
 }

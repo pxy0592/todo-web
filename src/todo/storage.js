@@ -1,4 +1,4 @@
-export const STORAGE_KEY = 'todo-app.tasks';
+export const STORAGE_KEY = "todo-app.tasks";
 const STORAGE_VERSION = 1;
 
 function warning(message) {
@@ -6,14 +6,16 @@ function warning(message) {
 }
 
 function isValidTaskRecord(record) {
-  return record !== null
-    && typeof record === 'object'
-    && !Array.isArray(record)
-    && typeof record.id === 'string'
-    && record.id.trim().length > 0
-    && typeof record.text === 'string'
-    && record.text.trim().length > 0
-    && typeof record.completed === 'boolean';
+  return (
+    record !== null &&
+    typeof record === "object" &&
+    !Array.isArray(record) &&
+    typeof record.id === "string" &&
+    record.id.trim().length > 0 &&
+    typeof record.text === "string" &&
+    record.text.trim().length > 0 &&
+    typeof record.completed === "boolean"
+  );
 }
 
 function normalizeTasks(records) {
@@ -42,7 +44,7 @@ export function loadTasks(storage) {
   try {
     serialized = storage.getItem(STORAGE_KEY);
   } catch {
-    return warning('Unable to read saved tasks.');
+    return warning("Unable to read saved tasks.");
   }
 
   if (serialized === null || serialized === undefined) {
@@ -53,15 +55,17 @@ export function loadTasks(storage) {
   try {
     envelope = JSON.parse(serialized);
   } catch {
-    return warning('Saved tasks are malformed.');
+    return warning("Saved tasks are malformed.");
   }
 
-  if (envelope === null
-    || typeof envelope !== 'object'
-    || Array.isArray(envelope)
-    || envelope.version !== STORAGE_VERSION
-    || !Array.isArray(envelope.tasks)) {
-    return warning('Saved tasks have an unsupported format.');
+  if (
+    envelope === null ||
+    typeof envelope !== "object" ||
+    Array.isArray(envelope) ||
+    envelope.version !== STORAGE_VERSION ||
+    !Array.isArray(envelope.tasks)
+  ) {
+    return warning("Saved tasks have an unsupported format.");
   }
 
   return { tasks: normalizeTasks(envelope.tasks) };
@@ -76,6 +80,6 @@ export function saveTasks(storage, tasks) {
     storage.setItem(STORAGE_KEY, serialized);
     return { ok: true };
   } catch {
-    return { ok: false, warning: 'Unable to save tasks.' };
+    return { ok: false, warning: "Unable to save tasks." };
   }
 }

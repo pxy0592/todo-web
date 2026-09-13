@@ -29,6 +29,7 @@ npm run test:coverage
 npx playwright install chromium
 npm run test:e2e
 npm run build
+npm run format:check
 npm run check
 ```
 
@@ -37,7 +38,8 @@ npm run check
 - `npx playwright install chromium` 安装 Playwright 使用的 Chromium 浏览器；在新环境中只需首次执行。
 - `npm run test:e2e` 使用 Playwright 启动或复用本地静态服务器，验证真实浏览器中的页面、交互、刷新恢复和窄视口可用性。
 - `npm run build` 将 `index.html`、`src/` 和 `styles/` 复制到可部署的静态目录 `dist/`。
-- `npm run check` 顺序执行单元测试和静态构建检查。
+- `npm run format:check` 使用 Prettier 检查项目源代码、测试、配置和 README 的格式；生成文件和 OpenSpec/技能工作流产物会被忽略。
+- `npm run check` 顺序执行格式检查、单元测试和静态构建检查。
 
 ## 模块职责
 

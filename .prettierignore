@@ -1,0 +1,10 @@
+# Generated dependencies and build/test artifacts.
+node_modules/
+dist/
+test-results/
+
+# OpenSpec and agent skill workflow artifacts are maintained separately.
+docs/.agents/
+docs/openspec/
+docs/superpowers/
+.superpowers/

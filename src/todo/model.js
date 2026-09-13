@@ -15,15 +15,23 @@ export function createTask(text, idFactory) {
 export function addTask(tasks, text, idFactory) {
   const task = createTask(text, idFactory);
 
-  return task === null ? [...tasks] : [...tasks, task];
+  if (task === null) {
+    return [...tasks];
+  }
+
+  const taskIds = new Set(tasks.map(({ id }) => id));
+  let taskId = task.id;
+  while (taskIds.has(taskId)) {
+    taskId = idFactory();
+  }
+
+  return [...tasks, { ...task, id: taskId }];
 }
 
 export function toggleTask(tasks, taskId) {
-  return tasks.map((task) => (
-    task.id === taskId
-      ? { ...task, completed: !task.completed }
-      : task
-  ));
+  return tasks.map((task) =>
+    task.id === taskId ? { ...task, completed: !task.completed } : task,
+  );
 }
 
 export function removeTask(tasks, taskId) {
