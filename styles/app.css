@@ -1,0 +1,167 @@
+:root {
+  color: #1f2937;
+  background: #f3f4f6;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+  line-height: 1.5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 0;
+}
+
+.todo-app {
+  width: min(100% - 2rem, 42rem);
+  margin: 0 auto;
+  padding: 3rem 0;
+}
+
+.app-header {
+  margin-bottom: 2rem;
+}
+
+.app-header h1,
+.app-header p,
+.task-section h2 {
+  margin: 0;
+}
+
+.app-header h1 {
+  color: #111827;
+  font-size: clamp(2rem, 7vw, 3rem);
+}
+
+.app-header p {
+  color: #6b7280;
+  margin-top: 0.35rem;
+}
+
+.task-form {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.task-form > label,
+.task-section h2 {
+  color: #374151;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.task-entry {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.task-entry input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font: inherit;
+  padding: 0.7rem 0.8rem;
+}
+
+button {
+  border: 0;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0.7rem 1rem;
+}
+
+.task-entry button {
+  color: #fff;
+  background: #2563eb;
+}
+
+.task-list {
+  display: grid;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0;
+}
+
+.task-row {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.65rem;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  min-width: 0;
+  padding: 0.8rem;
+}
+
+.task-label {
+  align-items: flex-start;
+  display: flex;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.task-label input {
+  flex: 0 0 auto;
+  height: 1.1rem;
+  margin-top: 0.2rem;
+  width: 1.1rem;
+}
+
+.task-text {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.task-row.completed .task-text {
+  color: #6b7280;
+  text-decoration: line-through;
+}
+
+.delete-task {
+  background: #fee2e2;
+  color: #991b1b;
+  flex: 0 0 auto;
+  padding: 0.45rem 0.7rem;
+}
+
+.empty-state,
+.status {
+  color: #6b7280;
+  margin: 0.75rem 0 0;
+}
+
+.status {
+  color: #92400e;
+}
+
+@media (max-width: 28rem) {
+  .todo-app {
+    padding: 2rem 0;
+  }
+
+  .task-entry {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .task-entry button {
+    width: 100%;
+  }
+
+  .task-row {
+    align-items: flex-start;
+  }
+}
