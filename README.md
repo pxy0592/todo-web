@@ -6,6 +6,7 @@
 
 - Node.js：本次验证使用 Node.js `v22.23.2`。
 - Python 3：本地静态服务器使用 `python3`；本次验证使用 Python `3.14.4`。
+- Playwright 浏览器：安装依赖后执行 `npx playwright install chromium`，首次运行 E2E 测试前完成 Chromium 安装。
 
 ## 本地运行
 
@@ -25,6 +26,7 @@ npm run start
 ```bash
 npm run test:unit
 npm run test:coverage
+npx playwright install chromium
 npm run test:e2e
 npm run build
 npm run check
@@ -32,6 +34,7 @@ npm run check
 
 - `npm run test:unit` 运行 Node.js 内置测试，覆盖任务模型和存储适配器。
 - `npm run test:coverage` 运行相同单元测试并输出覆盖率报告；本实现的模型与存储单元覆盖率达到至少 90%。
+- `npx playwright install chromium` 安装 Playwright 使用的 Chromium 浏览器；在新环境中只需首次执行。
 - `npm run test:e2e` 使用 Playwright 启动或复用本地静态服务器，验证真实浏览器中的页面、交互、刷新恢复和窄视口可用性。
 - `npm run build` 将 `index.html`、`src/` 和 `styles/` 复制到可部署的静态目录 `dist/`。
 - `npm run check` 顺序执行单元测试和静态构建检查。
