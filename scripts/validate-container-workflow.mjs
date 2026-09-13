@@ -197,16 +197,14 @@ function hasRequiredMetadataRules(tags) {
     return false;
   }
 
-  const shaRules = rules.filter((rule) => rule.type === "sha");
-  const latestRules = rules.filter(
-    (rule) => rule.type === "raw" && rule.value === "latest",
-  );
-
   return (
-    shaRules.length === 1 &&
-    hasExactMetadataRule(shaRules[0], canonicalShaMetadataRule) &&
-    latestRules.length === 1 &&
-    hasExactMetadataRule(latestRules[0], canonicalLatestMetadataRule)
+    rules.length === 2 &&
+    rules.some((rule) =>
+      hasExactMetadataRule(rule, canonicalShaMetadataRule),
+    ) &&
+    rules.some((rule) =>
+      hasExactMetadataRule(rule, canonicalLatestMetadataRule),
+    )
   );
 }
 
@@ -215,9 +213,10 @@ function hasRequiredImageSteps(job) {
   const metadataStep = steps.find(
     (step) => step?.uses === "docker/metadata-action@v5",
   );
-  const buildStep = steps.find(
+  const buildSteps = steps.filter(
     (step) => step?.uses === "docker/build-push-action@v6",
   );
+  const [buildStep] = buildSteps;
 
   return (
     hasActionStep(steps, "actions/checkout@v4") &&
@@ -225,6 +224,7 @@ function hasRequiredImageSteps(job) {
     metadataStep?.id === "meta" &&
     metadataStep?.with?.images === "ghcr.io/${{ github.repository }}" &&
     hasRequiredMetadataRules(metadataStep?.with?.tags) &&
+    buildSteps.length === 1 &&
     buildStep?.with?.context === "." &&
     buildStep?.with?.file === "./Dockerfile" &&
     buildStep?.with?.tags === "${{ steps.meta.outputs.tags }}" &&

@@ -262,6 +262,26 @@ test("rejects an additional always-enabled latest metadata rule", () => {
   );
 });
 
+test("rejects metadata tags outside the canonical SHA and main-only latest rules", () => {
+  assertRejected(
+    workflowWithImage({
+      from: "            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+      to: "            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}\n            type=raw,value=preview,enable=true",
+    }),
+    "image-job-steps",
+  );
+});
+
+test("rejects a second build-push action that pushes the image", () => {
+  assertRejected(
+    workflowWithImage({
+      from: "      - uses: actions/upload-artifact@v4\n        with:\n          name: todo-web-image-${{ github.sha }}",
+      to: "      - uses: docker/build-push-action@v6\n        with:\n          push: true\n      - uses: actions/upload-artifact@v4\n        with:\n          name: todo-web-image-${{ github.sha }}",
+    }),
+    "image-job-steps",
+  );
+});
+
 test("requires image artifact uploads to fail when no tarball is exported", () => {
   const imageArtifactStart = validWorkflow.indexOf(
     "          name: todo-web-image-${{ github.sha }}",
