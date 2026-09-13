@@ -17,6 +17,6 @@
 
 ## 4. Validation and Documentation
 
-- [ ] 4.1 Add responsive, readable styling for the single-page layout and distinct completed state; verify the page remains usable at narrow viewport widths.
-- [ ] 4.2 Update `README.md` with prerequisites, local development, test, build (if applicable), storage behavior, and extension boundaries; verify every documented command works from a clean checkout.
-- [ ] 4.3 Run the full formatter/linter, unit and integration tests, coverage report, and production build; verify all acceptance-criterion scenarios pass and unit coverage reaches at least 90%.
+- [x] 4.1 Add responsive, readable styling for the single-page layout and distinct completed state; verify the page remains usable at narrow viewport widths.
+- [x] 4.2 Update `README.md` with prerequisites, local development, test, build (if applicable), storage behavior, and extension boundaries; verify every documented command works from a clean checkout.
+- [x] 4.3 Run the full formatter/linter, unit and integration tests, coverage report, and production build; verify all acceptance-criterion scenarios pass and unit coverage reaches at least 90%.
