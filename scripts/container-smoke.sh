@@ -55,6 +55,11 @@ run_container_smoke() {
   cleanup_container
   docker image inspect "$image_name" >/dev/null || fail "image $image_name is unavailable"
   docker run --rm -d --name "$container_name" -p "$host_port:4173" "$image_name" >/dev/null
+  if [ "$host_port" = "0" ]; then
+    host_port="$(docker port "$container_name" 4173/tcp | head -n 1 | sed 's/.*://')" || fail "Docker did not assign a host port"
+    [ -n "$host_port" ] || fail "Docker assigned an empty host port"
+    base_url="http://127.0.0.1:${host_port}"
+  fi
 
   wait_for_page 20
   assert_header "/styles/app.css" "content-type" "text/css"

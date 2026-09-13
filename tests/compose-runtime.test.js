@@ -51,7 +51,7 @@ test("uses distinct dynamic ports for independent Docker runtime smoke tests", (
   const containerSmokeTest = readFileSync(containerSmokeTestPath, "utf8");
 
   assert.match(containerSmokeTest, /TODO_WEB_SMOKE_PORT/);
-  assert.match(containerSmokeTest, /process\.pid/);
+  assert.match(containerSmokeTest, /const smokePort = "0"/);
 });
 
 test("uses an unset default Compose environment with a temporary port override and bounded curl", () => {

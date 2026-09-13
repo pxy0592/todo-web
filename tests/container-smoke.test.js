@@ -10,7 +10,7 @@ const projectRoot = path.resolve(
 );
 const containerName = "todo-web-smoke";
 const helperPath = path.join(projectRoot, "scripts", "container-smoke.sh");
-const smokePort = String(42_000 + (process.pid % 1_000));
+const smokePort = "0";
 
 function removeSmokeContainer() {
   execFileSync("docker", ["rm", "-f", containerName], {
