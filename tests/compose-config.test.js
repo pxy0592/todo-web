@@ -42,9 +42,11 @@ function readComposeConfig(environmentOverrides = {}) {
 function assertComposeSourceContract(config) {
   assert.deepEqual(Object.keys(config.services), ["todo-web"]);
   assert.equal(config.volumes, undefined);
+  assert.equal(config.networks, undefined);
 
   const service = config.services["todo-web"];
   assert.equal(service.volumes, undefined);
+  assert.equal(service.networks, undefined);
   assert.equal(service.privileged, undefined);
   assert.equal(service.network_mode, undefined);
 }

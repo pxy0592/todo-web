@@ -10,6 +10,7 @@ const projectRoot = path.resolve(
 );
 const containerName = "todo-web-smoke";
 const helperPath = path.join(projectRoot, "scripts", "container-smoke.sh");
+const smokePort = String(42_000 + (process.pid % 1_000));
 
 function removeSmokeContainer() {
   execFileSync("docker", ["rm", "-f", containerName], {
@@ -23,6 +24,7 @@ test("validates the local image HTTP contract and cleans up its named container"
     const result = spawnSync(helperPath, [], {
       cwd: projectRoot,
       encoding: "utf8",
+      env: { ...process.env, TODO_WEB_SMOKE_PORT: smokePort },
     });
 
     assert.equal(result.error, undefined);
