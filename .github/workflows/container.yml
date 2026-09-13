@@ -75,4 +75,17 @@ jobs:
       contents: read
       packages: write
     runs-on: ubuntu-latest
-    steps: []
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: todo-web-image-${{ github.sha }}
+          path: /tmp/todo-web-image
+      - run: docker load --input /tmp/todo-web-image/todo-web-image.tar
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - run: docker push ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      - run: docker push ghcr.io/${{ github.repository }}:latest
+        if: github.ref == 'refs/heads/main'

@@ -271,6 +271,40 @@ function hasRequiredImageSteps(job) {
   );
 }
 
+function hasRequiredPublishSteps(job) {
+  const steps = asList(job?.steps);
+  const expectedSteps = [
+    (step) =>
+      step?.uses === "actions/download-artifact@v4" &&
+      hasExactKeys(step.with, ["name", "path"]) &&
+      step.with.name === "todo-web-image-${{ github.sha }}" &&
+      step.with.path === "/tmp/todo-web-image",
+    (step) =>
+      hasExactKeys(step, ["run"]) &&
+      step.run === "docker load --input /tmp/todo-web-image/todo-web-image.tar",
+    (step) =>
+      step?.uses === "docker/login-action@v3" &&
+      hasExactKeys(step.with, ["registry", "username", "password"]) &&
+      step.with.registry === "ghcr.io" &&
+      step.with.username === "${{ github.actor }}" &&
+      allowedGitHubToken.test(step.with.password),
+    (step) =>
+      hasExactKeys(step, ["run"]) &&
+      step.run ===
+        "docker push ghcr.io/${{ github.repository }}:sha-${{ github.sha }}",
+    (step) =>
+      hasExactKeys(step, ["run", "if"]) &&
+      step.run === "docker push ghcr.io/${{ github.repository }}:latest" &&
+      step.if === "github.ref == 'refs/heads/main'",
+  ];
+
+  return (
+    job?.["runs-on"] === "ubuntu-latest" &&
+    steps.length === expectedSteps.length &&
+    expectedSteps.every((expectedStep, index) => expectedStep(steps[index]))
+  );
+}
+
 function hasSafePublishGuard(job) {
   const condition = job?.if;
 
@@ -421,6 +455,10 @@ export function validateWorkflow(workflow) {
 
   if (!hasSafePublishGuard(jobs.publish)) {
     errors.push("publish-guard");
+  }
+
+  if (!hasRequiredPublishSteps(jobs.publish)) {
+    errors.push("publish-job-steps");
   }
 
   if (!hasRootContentsReadPermission(workflow)) {

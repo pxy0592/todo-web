@@ -97,6 +97,21 @@ jobs:
     permissions:
       contents: read
       packages: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: todo-web-image-\${{ github.sha }}
+          path: /tmp/todo-web-image
+      - run: docker load --input /tmp/todo-web-image/todo-web-image.tar
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: \${{ github.actor }}
+          password: \${{ secrets.GITHUB_TOKEN }}
+      - run: docker push ghcr.io/\${{ github.repository }}:sha-\${{ github.sha }}
+      - run: docker push ghcr.io/\${{ github.repository }}:latest
+        if: github.ref == 'refs/heads/main'
 `;
 
 function workflowWith({ from, to }) {
@@ -204,6 +219,16 @@ function workflowWithPublish({ from, to }) {
 
   assert.ok(publishJob.includes(from), `missing publish fixture text: ${from}`);
   return validWorkflow.slice(0, publishJobStart) + publishJob.replace(from, to);
+}
+
+function workflowWithPublishEnvironment(environment) {
+  return workflowWithPublish({
+    from: "    runs-on: ubuntu-latest\n    steps:",
+    to: `    runs-on: ubuntu-latest
+    env:
+${environment}
+    steps:`,
+  });
 }
 
 test("requires an uncredentialed Buildx image artifact job with traceable metadata", () => {
@@ -425,6 +450,59 @@ test("requires main push and pull request triggers", () => {
   assertRejected(workflowWithoutPushMain, "main-triggers");
 });
 
+test("requires a guarded GHCR publish job that transfers and loads the image artifact", () => {
+  for (const [from, to] of [
+    ["actions/download-artifact@v4", "actions/download-artifact@v3"],
+    ["name: todo-web-image-${{ github.sha }}", "name: todo-web-image"],
+    ["path: /tmp/todo-web-image", "path: /tmp/image"],
+    [
+      "docker load --input /tmp/todo-web-image/todo-web-image.tar",
+      "docker load --input /tmp/todo-web-image/image.tar",
+    ],
+    ["docker/login-action@v3", "docker/login-action@v4"],
+    ["registry: ghcr.io", "registry: registry.example.com"],
+    ["username: ${{ github.actor }}", "username: todo-web"],
+    [
+      "password: ${{ secrets.GITHUB_TOKEN }}",
+      "password: ${{ secrets.OTHER_TOKEN }}",
+    ],
+    [
+      "docker push ghcr.io/${{ github.repository }}:sha-${{ github.sha }}",
+      "docker push ghcr.io/${{ github.repository }}:latest",
+    ],
+    [
+      "if: github.ref == 'refs/heads/main'",
+      "if: github.ref == 'refs/heads/release'",
+    ],
+  ]) {
+    assertRejected(workflowWithPublish({ from, to }), "publish-job-steps");
+  }
+});
+
+test("rejects publish jobs missing artifact transfer, load, login, or push steps", () => {
+  for (const step of [
+    "      - uses: actions/download-artifact@v4\n        with:\n          name: todo-web-image-${{ github.sha }}\n          path: /tmp/todo-web-image\n",
+    "      - run: docker load --input /tmp/todo-web-image/todo-web-image.tar\n",
+    "      - uses: docker/login-action@v3\n        with:\n          registry: ghcr.io\n          username: ${{ github.actor }}\n          password: ${{ secrets.GITHUB_TOKEN }}\n",
+    "      - run: docker push ghcr.io/${{ github.repository }}:sha-${{ github.sha }}\n",
+  ]) {
+    assertRejected(
+      workflowWithPublish({ from: step, to: "" }),
+      "publish-job-steps",
+    );
+  }
+});
+
+test("rejects direct publication on pull requests", () => {
+  assertRejected(
+    workflowWithPublish({
+      from: "github.event_name == 'push' && github.ref == 'refs/heads/main'",
+      to: "github.event_name == 'pull_request' && github.ref == 'refs/heads/main'",
+    }),
+    "publish-guard",
+  );
+});
+
 test("accepts the canonical publish guard with whitespace and parentheses", () => {
   const workflowWithParenthesizedGuard = workflowWithPublish({
     from: "github.event_name == 'push' && github.ref == 'refs/heads/main'",
@@ -522,34 +600,14 @@ test("rejects non-publish job permission broadening", () => {
 });
 
 test("allows only GITHUB_TOKEN expressions in password or token contexts", () => {
-  const workflowWithAllowedCredentials = workflowWith({
-    from: "      packages: write",
-    to: `      packages: write
-    env:
-      GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - with:
-          password: \${{ secrets.GITHUB_TOKEN }}`,
-  });
-
-  assert.deepEqual(resultFor(workflowWithAllowedCredentials), { ok: true });
+  assert.deepEqual(resultFor(validWorkflow), { ok: true });
 });
 
 test("rejects hard-coded camelCase credential keys without exposing values", () => {
   const secret = "not-a-real-camel-case-credential";
   const unsafeWorkflows = [
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    env:
-      registryPassword: ${secret}`,
-    }),
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    env:
-      accessToken: ${secret}`,
-    }),
+    workflowWithPublishEnvironment(`      registryPassword: ${secret}`),
+    workflowWithPublishEnvironment(`      accessToken: ${secret}`),
   ];
 
   for (const workflow of unsafeWorkflows) {
@@ -564,50 +622,21 @@ test("rejects hard-coded camelCase credential keys without exposing values", () 
 test("rejects PAT and token-shaped credentials without exposing values", () => {
   const secret = "ghp_not-a-real-secret";
   const unsafeWorkflows = [
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    env:
-      PERSONAL_ACCESS_TOKEN: ${secret}`,
+    workflowWithPublishEnvironment(`      PERSONAL_ACCESS_TOKEN: ${secret}`),
+    workflowWithPublishEnvironment(`      GH_PAT: ${secret}`),
+    workflowWithPublishEnvironment("      REGISTRY_TOKEN: ordinary-value"),
+    workflowWithPublish({
+      from: "password: ${{ secrets.GITHUB_TOKEN }}",
+      to: "password: ${{ secrets.OTHER_TOKEN }}",
     }),
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    env:
-      GH_PAT: ${secret}`,
+    workflowWithPublish({
+      from: "username: ${{ github.actor }}",
+      to: "username: ${{ secrets.GITHUB_TOKEN }}",
     }),
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    env:
-      REGISTRY_TOKEN: ordinary-value`,
-    }),
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    steps:
-      - with:
-          password: \${{ secrets.OTHER_TOKEN }}`,
-    }),
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    steps:
-      - with:
-          username: \${{ secrets.GITHUB_TOKEN }}`,
-    }),
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    env:
-      USERNAME: ghp_not-a-real-secret`,
-    }),
-    workflowWith({
-      from: "      packages: write",
-      to: `      packages: write
-    env:
-      USERNAME: github_pat_not-a-real-secret`,
-    }),
+    workflowWithPublishEnvironment("      USERNAME: ghp_not-a-real-secret"),
+    workflowWithPublishEnvironment(
+      "      USERNAME: github_pat_not-a-real-secret",
+    ),
   ];
 
   for (const workflow of unsafeWorkflows) {
