@@ -13,8 +13,11 @@
     "lint": "eslint .",
     "validate:compose": "node --test tests/compose-config.test.js",
     "test:compose-runtime": "node --test tests/compose-runtime.test.js",
+    "test:container-smoke": "node --test tests/container-smoke.test.js",
     "validate:container-workflow": "node scripts/validate-container-workflow.mjs",
-    "test:container-workflow": "node --test tests/container-workflow.test.js"
+    "test:container-workflow": "node --test tests/container-workflow.test.js",
+    "test:container-validation": "node --test tests/container-validation.test.js",
+    "validate:container": "node scripts/validate-container.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
