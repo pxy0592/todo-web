@@ -22,7 +22,7 @@ const requiredNeeds = {
 const canonicalPublishGuard =
   "github.event_name=='push'&&github.ref=='refs/heads/main'";
 const allowedGitHubToken = /^\s*\$\{\{\s*secrets\.GITHUB_TOKEN\s*\}\}\s*$/;
-const secretExpression = /\$\{\{\s*secrets\.[^}]*\}\}/i;
+const secretExpression = /\$\{\{[^}]*\bsecrets\b[^}]*\}\}/i;
 const credentialKey =
   /(?:^|_)(?:pat|personal_access_token|token|password)(?:_|$)/;
 const credentialValue =

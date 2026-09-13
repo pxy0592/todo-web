@@ -603,6 +603,25 @@ test("allows only GITHUB_TOKEN expressions in password or token contexts", () =>
   assert.deepEqual(resultFor(validWorkflow), { ok: true });
 });
 
+test("rejects bracket-form secret expressions without exposing them", () => {
+  for (const expression of [
+    "${{ secrets['DEPLOY_KEY'] }}",
+    '${{ secrets["DEPLOY_KEY"] }}',
+    "deploy=${{ secrets['DEPLOY_KEY'] }}",
+    "${{ SECRETS . DEPLOY_KEY }}",
+    "${{ secrets [ 'DEPLOY_KEY' ] }}",
+    "${{ secrets . GITHUB_TOKEN }}",
+  ]) {
+    const result = resultFor(
+      workflowWithPublishEnvironment(`      DEPLOYMENT: ${expression}`),
+    );
+
+    assert.deepEqual(result, { ok: false, errors: ["credential-safety"] });
+    assert.equal(JSON.stringify(result).includes(expression), false);
+    assert.equal(JSON.stringify(result).includes("DEPLOY_KEY"), false);
+  }
+});
+
 test("rejects secret expressions in non-token-named environments without exposing them", () => {
   const unsafeWorkflows = [
     workflowWithPublishEnvironment(
