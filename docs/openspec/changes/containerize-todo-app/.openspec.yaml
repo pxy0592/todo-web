@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-09-13
+goal: 让 Todo Web 应用可以通过 Docker Compose 本地运行，并在 GitHub Actions 中自动验证和发布容器镜像。
