@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { EventEmitter } from "node:events";
+import { spawn } from "node:child_process";
+import { EventEmitter, once } from "node:events";
 import { after, afterEach, before, test } from "node:test";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -171,6 +172,98 @@ test("closes a started server cleanly", async () => {
 
   assert.equal(temporaryServer.server.listening, false);
 });
+
+test(
+  "runs the copied production entrypoint from its sibling dist directory",
+  { timeout: 10_000 },
+  async () => {
+    const runtimeDirectory = await mkdtemp(
+      path.join(os.tmpdir(), "todo-production-runtime-"),
+    );
+    const entrypointPath = path.join(runtimeDirectory, "serve.mjs");
+    const distDirectory = path.join(runtimeDirectory, "dist");
+    let productionProcess;
+
+    try {
+      await mkdir(distDirectory);
+      await cp(
+        new URL("../scripts/serve.mjs", import.meta.url),
+        entrypointPath,
+      );
+      await writeFile(
+        path.join(distDirectory, "index.html"),
+        "<h1>Production Todo</h1>",
+      );
+
+      productionProcess = spawn(process.execPath, [entrypointPath], {
+        env: { ...process.env, PORT: "0" },
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+
+      const output = await new Promise((resolve, reject) => {
+        let stdout = "";
+        let stderr = "";
+        const timeout = setTimeout(() => {
+          reject(new Error(`production server did not start: ${stderr}`));
+        }, 5_000);
+        const finish = (callback, value) => {
+          clearTimeout(timeout);
+          callback(value);
+        };
+
+        productionProcess.stdout.on("data", (chunk) => {
+          stdout += chunk;
+          const match = stdout.match(/Serving static files on port (\d+)/);
+          if (match) {
+            finish(resolve, Number(match[1]));
+          }
+        });
+        productionProcess.stderr.on("data", (chunk) => {
+          stderr += chunk;
+        });
+        productionProcess.once("error", (error) => finish(reject, error));
+        productionProcess.once("exit", (code, signal) => {
+          finish(
+            reject,
+            new Error(
+              `production server exited early (${code}, ${signal}): ${stderr}`,
+            ),
+          );
+        });
+      });
+
+      const response = await new Promise((resolve, reject) => {
+        http
+          .get({ host: "127.0.0.1", port: output, path: "/" }, (result) => {
+            const chunks = [];
+            result.on("data", (chunk) => chunks.push(chunk));
+            result.on("end", () => {
+              resolve({
+                body: Buffer.concat(chunks).toString("utf8"),
+                statusCode: result.statusCode,
+              });
+            });
+          })
+          .on("error", reject);
+      });
+
+      assert.equal(response.statusCode, 200);
+      assert.equal(response.body, "<h1>Production Todo</h1>");
+
+      const exited = once(productionProcess, "exit");
+      productionProcess.kill("SIGTERM");
+      const [code, signal] = await exited;
+      assert.equal(code, 0);
+      assert.equal(signal, null);
+    } finally {
+      if (productionProcess && productionProcess.exitCode === null) {
+        productionProcess.kill("SIGKILL");
+        await once(productionProcess, "exit");
+      }
+      await rm(runtimeDirectory, { force: true, recursive: true });
+    }
+  },
+);
 
 test("uses the container host, port, and sibling dist directory by default", () => {
   const options = getProductionServerOptions({
