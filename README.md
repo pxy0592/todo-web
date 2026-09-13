@@ -4,9 +4,15 @@
 
 ## 前置条件
 
+### 宿主机开发与测试
+
 - Node.js：本次验证使用 Node.js `v22.23.2`。
 - Python 3：本地静态服务器使用 `python3`；本次验证使用 Python `3.14.4`。
 - Playwright 浏览器：安装依赖后执行 `npx playwright install chromium`，首次运行 E2E 测试前完成 Chromium 安装。
+
+### 容器运行
+
+容器方式需要可访问的 Docker Engine 和 Docker Compose（`docker compose` 插件）。容器镜像在构建阶段安装依赖并构建静态文件，在运行阶段由镜像内的 Node.js 服务器提供页面；因此运行容器不需要宿主机安装 Node.js 或 Python。
 
 ## 本地运行
 
@@ -17,7 +23,53 @@ npm install
 npm run start
 ```
 
-然后打开 <http://127.0.0.1:4173/>。`npm run start` 使用 Python 的静态文件服务器提供页面；停止服务器使用 `Ctrl-C`。
+然后打开 <http://127.0.0.1:4173/>。`npm run start` 是宿主机开发路径：它使用 Python 的静态文件服务器提供页面；停止服务器使用 `Ctrl-C`。
+
+## 使用本地 Docker 镜像
+
+在仓库根目录构建、启动并检查镜像：
+
+```bash
+docker build -t todo-web:local .
+docker run --rm -d --name todo-web-smoke -p 4173:4173 todo-web:local
+curl --fail http://127.0.0.1:4173/
+docker rm -f todo-web-smoke
+```
+
+容器内由 Node.js 在端口 `4173` 提供已构建的 `dist/` 静态文件；这与上述使用宿主机 Python 的 `npm run start` 开发方式不同。
+
+## 使用 Docker Compose
+
+`compose.yaml` 只定义一个 `todo-web` 服务，默认将宿主机端口 `4173` 映射到容器端口 `4173`。在仓库根目录执行默认启动、检查和停止：
+
+```bash
+docker compose up --build -d
+curl --fail http://127.0.0.1:4173/
+docker compose ps
+docker compose down
+```
+
+如需更改宿主机端口，设置 `TODO_WEB_PORT`。以下命令会以宿主机端口 `4317` 运行同一容器端口：
+
+```bash
+TODO_WEB_PORT=4317 docker compose up --build -d
+curl --fail http://127.0.0.1:4317/
+docker compose ps
+docker compose down
+```
+
+此 Compose 配置不挂载 Docker volume，也不提供容器侧 Todo 持久化。任务仍仅由浏览器的 `localStorage` 保存；容器化不会改变现有浏览器存储行为。
+
+## GHCR 镜像与 GitHub Actions
+
+GitHub Actions 工作流位于 `.github/workflows/container.yml`，只响应目标为 `main` 的 push 和 pull request。它按 `build → test → image → publish` 的依赖顺序运行：
+
+- 镜像名为 `ghcr.io/<owner>/<repo>`，在工作流中由 `ghcr.io/${{ github.repository }}` 生成。
+- 每次构建生成不可变的完整提交标签 `sha-<commit>`。
+- `latest` 只会在成功的 `main` push 中生成并发布。
+- Pull request 会运行构建、测试和镜像构建/制品导出，但不会上传镜像。
+- `main` push 在前序 job 成功后运行 publish，将 SHA 标签和 `latest` 上传到 GHCR。
+- 发布使用 GitHub Actions 提供的短期 `GITHUB_TOKEN`，publish job 需要 `packages: write` 权限（同时保留 `contents: read`）；不需要也不应配置长期 PAT。
 
 ## 测试、构建与检查
 
@@ -42,6 +94,22 @@ npm run check
 - `npm run format:check` 使用 Prettier 检查项目源代码、测试、配置和 README 的格式；生成文件和 OpenSpec/技能工作流产物会被忽略。
 - `npm run lint` 使用 ESLint 检查原生 ES 模块、浏览器代码、Node.js 脚本、测试和 Playwright 配置。
 - `npm run check` 顺序执行格式检查、Lint、单元测试和静态构建检查。
+
+### 容器和工作流验证
+
+以下命令验证已签入的 Compose、容器和 GitHub Actions 契约：
+
+```bash
+npm run validate:compose
+npm run test:container-smoke
+npm run test:compose-runtime
+npm run validate:container-workflow
+npm run test:container-workflow
+npm run test:container-validation
+npm run validate:container
+```
+
+`npm run validate:container` 先执行静态 Dockerfile、`.dockerignore`、Compose 和 workflow 检查，再要求可访问的 Docker Engine/Compose 执行镜像构建、`docker compose config`、独立容器 HTTP smoke 和 Compose 生命周期 smoke；Docker 不可访问时该命令会失败而不是跳过运行时验证。
 
 ## 模块职责
 
