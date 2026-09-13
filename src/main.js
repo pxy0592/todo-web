@@ -11,7 +11,39 @@ const elements = {
 };
 
 let tasks = [];
-const storage = window.localStorage;
+
+function createMemoryStorage() {
+  const values = new Map();
+  return {
+    getItem(key) {
+      return values.has(key) ? values.get(key) : null;
+    },
+    setItem(key, value) {
+      values.set(key, String(value));
+    },
+  };
+}
+
+function acquireStorage() {
+  try {
+    const candidate = window.localStorage;
+    if (candidate
+      && typeof candidate.getItem === 'function'
+      && typeof candidate.setItem === 'function') {
+      return { storage: candidate, warning: '' };
+    }
+  } catch {
+    // Fall through to the in-memory session storage below.
+  }
+
+  return {
+    storage: createMemoryStorage(),
+    warning: 'Unable to access saved tasks.',
+  };
+}
+
+const acquiredStorage = acquireStorage();
+const storage = acquiredStorage.storage;
 
 function setStatus(message = '') {
   elements.statusElement.textContent = message;
@@ -58,6 +90,8 @@ tasks = loaded.tasks;
 render();
 if (loaded.warning) {
   setStatus(loaded.warning);
+} else if (acquiredStorage.warning) {
+  setStatus(acquiredStorage.warning);
 }
 
 bindTodoEvents({

@@ -168,3 +168,36 @@ test.describe('todo interactions and persistence', () => {
     await expect(page.getByRole('status', { name: '操作状态' })).toContainText('Unable to save tasks.');
   });
 });
+
+test.describe('todo storage initialization recovery', () => {
+  test('shows a load warning for unsupported saved data and still allows adding a task', async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem('todo-app.tasks', JSON.stringify({ version: 99, tasks: [] }));
+    });
+    await page.goto('/');
+
+    await expect(page.getByRole('status', { name: '操作状态' })).toContainText('Saved tasks have an unsupported format.');
+    await expect(page.getByRole('textbox', { name: '任务' })).toBeVisible();
+
+    await page.getByRole('textbox', { name: '任务' }).fill('恢复后新增的任务');
+    await page.getByRole('button', { name: '添加' }).click();
+    await expect(page.getByRole('listitem')).toContainText('恢复后新增的任务');
+  });
+
+  test('uses an in-memory fallback when localStorage is unavailable', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(window, 'localStorage', {
+        configurable: true,
+        get() {
+          throw new Error('localStorage unavailable');
+        },
+      });
+    });
+    await page.goto('/');
+
+    await expect(page.getByRole('status', { name: '操作状态' })).toContainText('Unable to access saved tasks.');
+    await page.getByRole('textbox', { name: '任务' }).fill('内存回退任务');
+    await page.getByRole('button', { name: '添加' }).click();
+    await expect(page.getByRole('listitem')).toContainText('内存回退任务');
+  });
+});
