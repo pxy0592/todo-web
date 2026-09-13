@@ -139,6 +139,77 @@ function hasImageArtifactStep(steps) {
   );
 }
 
+const canonicalShaMetadataRule = {
+  format: "long",
+  prefix: "sha-",
+  type: "sha",
+};
+const canonicalLatestMetadataRule = {
+  enable:
+    "${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+  type: "raw",
+  value: "latest",
+};
+
+function parseMetadataRules(tags) {
+  if (typeof tags !== "string") {
+    return null;
+  }
+
+  const lines = tags
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const rules = [];
+
+  for (const line of lines) {
+    const rule = {};
+
+    for (const option of line.split(",")) {
+      const separator = option.indexOf("=");
+      const key = option.slice(0, separator).trim();
+      const value = option.slice(separator + 1).trim();
+
+      if (separator <= 0 || !value || Object.hasOwn(rule, key)) {
+        return null;
+      }
+
+      rule[key] = value;
+    }
+
+    rules.push(rule);
+  }
+
+  return rules;
+}
+
+function hasExactMetadataRule(rule, expected) {
+  return (
+    Object.keys(rule).length === Object.keys(expected).length &&
+    Object.entries(expected).every(([key, value]) => rule[key] === value)
+  );
+}
+
+function hasRequiredMetadataRules(tags) {
+  const rules = parseMetadataRules(tags);
+
+  if (!rules) {
+    return false;
+  }
+
+  const shaRules = rules.filter((rule) => rule.type === "sha");
+  const latestRules = rules.filter(
+    (rule) => rule.type === "raw" && rule.value === "latest",
+  );
+
+  return (
+    shaRules.length === 1 &&
+    hasExactMetadataRule(shaRules[0], canonicalShaMetadataRule) &&
+    latestRules.length === 1 &&
+    hasExactMetadataRule(latestRules[0], canonicalLatestMetadataRule)
+  );
+}
+
 function hasRequiredImageSteps(job) {
   const steps = asList(job?.steps);
   const metadataStep = steps.find(
@@ -147,18 +218,13 @@ function hasRequiredImageSteps(job) {
   const buildStep = steps.find(
     (step) => step?.uses === "docker/build-push-action@v6",
   );
-  const tags = metadataStep?.with?.tags;
 
   return (
     hasActionStep(steps, "actions/checkout@v4") &&
     hasActionStep(steps, "docker/setup-buildx-action@v3") &&
     metadataStep?.id === "meta" &&
     metadataStep?.with?.images === "ghcr.io/${{ github.repository }}" &&
-    typeof tags === "string" &&
-    tags.includes("type=sha,format=long,prefix=sha-") &&
-    tags.includes(
-      "type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
-    ) &&
+    hasRequiredMetadataRules(metadataStep?.with?.tags) &&
     buildStep?.with?.context === "." &&
     buildStep?.with?.file === "./Dockerfile" &&
     buildStep?.with?.tags === "${{ steps.meta.outputs.tags }}" &&

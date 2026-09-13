@@ -242,6 +242,26 @@ test("requires an uncredentialed Buildx image artifact job with traceable metada
   );
 });
 
+test("rejects disabled SHA metadata rules", () => {
+  assertRejected(
+    workflowWithImage({
+      from: "type=sha,format=long,prefix=sha-",
+      to: "type=sha,format=long,prefix=sha-,enable=false",
+    }),
+    "image-job-steps",
+  );
+});
+
+test("rejects an additional always-enabled latest metadata rule", () => {
+  assertRejected(
+    workflowWithImage({
+      from: "            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+      to: "            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}\n            type=raw,value=latest,enable=true",
+    }),
+    "image-job-steps",
+  );
+});
+
 test("requires image artifact uploads to fail when no tarball is exported", () => {
   const imageArtifactStart = validWorkflow.indexOf(
     "          name: todo-web-image-${{ github.sha }}",
