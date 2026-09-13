@@ -19,7 +19,13 @@ const requiredNeeds = {
   image: "test",
   publish: "image",
 };
-const forbiddenCredentialName = /\b(?:PAT|PERSONAL_ACCESS_TOKEN)\b/i;
+const canonicalPublishGuard =
+  "github.event_name=='push'&&github.ref=='refs/heads/main'";
+const allowedGitHubToken = /^\s*\$\{\{\s*secrets\.GITHUB_TOKEN\s*\}\}\s*$/;
+const credentialKey =
+  /(?:^|[_-])(?:pat|personal[_-]?access[_-]?token|token|password)(?:$|[_-])/i;
+const credentialValue =
+  /(?:\b(?:pat|personal[_-]?access[_-]?token)\b|\bgithub_pat_[A-Za-z0-9_]+\b|\bgh[pousr]_[A-Za-z0-9_]+\b)/i;
 
 export function parseWorkflow(source) {
   const document = parseDocument(source);
@@ -37,6 +43,16 @@ function asList(value) {
   }
 
   return value === undefined ? [] : [value];
+}
+
+function hasExactKeys(value, expectedKeys) {
+  return (
+    value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.keys(value).length === expectedKeys.length &&
+    expectedKeys.every((key) => Object.hasOwn(value, key))
+  );
 }
 
 function targetsMain(event) {
@@ -58,55 +74,92 @@ function hasRequiredNeeds(job, requiredNeed) {
 function hasSafePublishGuard(job) {
   const condition = job?.if;
 
+  if (typeof condition !== "string") {
+    return false;
+  }
+
+  let depth = 0;
+
+  for (const character of condition) {
+    if (character === "(") {
+      depth += 1;
+    } else if (character === ")") {
+      depth -= 1;
+      if (depth < 0) {
+        return false;
+      }
+    }
+  }
+
   return (
-    typeof condition === "string" &&
-    /github\.event_name\s*==\s*['"]push['"]/.test(condition) &&
-    /github\.ref\s*==\s*['"]refs\/heads\/main['"]/.test(condition)
+    depth === 0 &&
+    condition.replace(/[\s()]/g, "") === canonicalPublishGuard &&
+    !condition.includes("||") &&
+    !condition.includes("!")
   );
 }
 
 function hasRootContentsReadPermission(workflow) {
+  const permissions = workflow?.permissions;
+
   return (
-    workflow?.permissions?.contents === "read" &&
-    Object.keys(workflow.permissions).every((permission) =>
-      ["contents", "packages"].includes(permission),
-    )
+    hasExactKeys(permissions, ["contents"]) && permissions.contents === "read"
   );
 }
 
 function hasOnlyRequiredJobs(jobs) {
   return (
+    jobs &&
+    typeof jobs === "object" &&
     Object.keys(jobs).length === requiredJobs.length &&
-    Object.keys(jobs).every((jobName) => requiredJobs.includes(jobName))
+    requiredJobs.every((jobName) => Object.hasOwn(jobs, jobName))
   );
 }
 
-function hasSafePackagePermissions(workflow) {
-  const permissions = workflow?.permissions;
-  const jobs = workflow?.jobs ?? {};
+function hasSafeJobPermissions(jobName, job) {
+  const permissions = job?.permissions;
 
-  if (permissions?.packages !== undefined) {
-    return false;
+  if (permissions === undefined) {
+    return jobName !== "publish";
   }
 
-  return Object.entries(jobs).every(([jobName, job]) => {
-    const packagePermission = job?.permissions?.packages;
+  if (jobName === "publish") {
+    return (
+      hasExactKeys(permissions, ["contents", "packages"]) &&
+      permissions.contents === "read" &&
+      permissions.packages === "write"
+    );
+  }
 
-    if (jobName === "publish") {
-      return packagePermission === "write";
-    }
+  return (
+    hasExactKeys(permissions, ["contents"]) && permissions.contents === "read"
+  );
+}
 
-    return packagePermission === undefined;
-  });
+function hasSafePermissions(workflow) {
+  const jobs = workflow?.jobs;
+
+  return (
+    hasRootContentsReadPermission(workflow) &&
+    jobs &&
+    typeof jobs === "object" &&
+    Object.entries(jobs).every(([jobName, job]) =>
+      hasSafeJobPermissions(jobName, job),
+    )
+  );
 }
 
 function hasForbiddenCredential(value, key = "") {
-  if (forbiddenCredentialName.test(key)) {
+  if (typeof value === "string" && credentialValue.test(value)) {
     return true;
   }
 
+  if (credentialKey.test(key)) {
+    return typeof value !== "string" || !allowedGitHubToken.test(value);
+  }
+
   if (typeof value === "string") {
-    return forbiddenCredentialName.test(value);
+    return allowedGitHubToken.test(value);
   }
 
   if (Array.isArray(value)) {
@@ -114,16 +167,9 @@ function hasForbiddenCredential(value, key = "") {
   }
 
   if (value && typeof value === "object") {
-    return Object.entries(value).some(([childKey, childValue]) => {
-      if (childKey.toLowerCase().includes("password")) {
-        return (
-          typeof childValue === "string" &&
-          !/^\s*\$\{\{\s*secrets\.GITHUB_TOKEN\s*\}\}\s*$/.test(childValue)
-        );
-      }
-
-      return hasForbiddenCredential(childValue, childKey);
-    });
+    return Object.entries(value).some(([childKey, childValue]) =>
+      hasForbiddenCredential(childValue, childKey),
+    );
   }
 
   return false;
@@ -160,7 +206,7 @@ export function validateWorkflow(workflow) {
     errors.push("contents-permission");
   }
 
-  if (!hasSafePackagePermissions(workflow)) {
+  if (!hasSafePermissions(workflow)) {
     errors.push("package-permissions");
   }
 
@@ -173,7 +219,8 @@ export function validateWorkflow(workflow) {
 
 async function main() {
   try {
-    const workflow = parseWorkflow(await readFile(workflowPath, "utf8"));
+    const sourcePath = process.argv[2] ?? workflowPath;
+    const workflow = parseWorkflow(await readFile(sourcePath, "utf8"));
     const result = validateWorkflow(workflow);
 
     if (!result.ok) {
