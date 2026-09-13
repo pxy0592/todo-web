@@ -74,6 +74,29 @@ test.describe('todo semantic UI', () => {
   });
 });
 
+test('keeps long task content and row controls usable at a narrow viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await page.goto('/');
+
+  const taskText = '这是一个足够长的任务标题，用来验证窄屏下内容会换行而不是挤出操作区域';
+  const input = page.getByRole('textbox', { name: '任务' });
+  await input.fill(taskText);
+  await page.getByRole('button', { name: '添加' }).click();
+
+  const row = page.getByRole('listitem');
+  const checkbox = row.getByRole('checkbox', { name: taskText });
+  const deleteButton = row.getByRole('button', { name: `删除${taskText}` });
+  await expect(row.getByText(taskText)).toBeVisible();
+  await expect(checkbox).toBeVisible();
+  await expect(deleteButton).toBeVisible();
+  await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 360);
+
+  await checkbox.check();
+  await expect(checkbox).toBeChecked();
+  await deleteButton.click();
+  await expect(page.getByRole('listitem')).toHaveCount(0);
+});
+
 test.describe('todo interactions and persistence', () => {
   test('adds a task with a click, clears the input, and restores it after reload', async ({ page }) => {
     await page.goto('/');
