@@ -33,9 +33,38 @@ permissions:
   contents: read
 
 jobs:
-  build: {}
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: todo-web-dist-\${{ github.sha }}
+          path: dist/
+          if-no-files-found: error
   test:
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run format:check
+      - run: npm run lint
+      - run: npm run test:unit
+      - run: npm run test:coverage
+      - run: npm run test:e2e
+      - run: npm run build
   image:
     needs: test
   publish:
@@ -64,6 +93,82 @@ function assertRejected(source, error) {
 
 test("accepts the checked-in workflow", () => {
   assert.deepEqual(resultFor(validWorkflow), { ok: true });
+});
+
+test("requires build steps that create a retained dist artifact", () => {
+  for (const [from, to] of [
+    ["actions/checkout@v4", "actions/checkout@v3"],
+    ["node-version: 22", "node-version: 20"],
+    ["cache: npm", "cache: yarn"],
+    ["      - run: npm ci\n", ""],
+    [
+      "      - run: npm run build\n      - uses: actions/upload-artifact@v4",
+      "      - uses: actions/upload-artifact@v4",
+    ],
+    ["actions/upload-artifact@v4", "actions/upload-artifact@v3"],
+    ["path: dist/", "path: build/"],
+    ["if-no-files-found: error", "if-no-files-found: warn"],
+  ]) {
+    assertRejected(workflowWith({ from, to }), "build-job-steps");
+  }
+});
+
+test("requires all existing verification gates after a successful build", () => {
+  for (const command of [
+    "npm ci",
+    "npx playwright install --with-deps chromium",
+    "npm run format:check",
+    "npm run lint",
+    "npm run test:unit",
+    "npm run test:coverage",
+    "npm run test:e2e",
+    "npm run build",
+  ]) {
+    const testJobStart = validWorkflow.indexOf("  test:\n");
+    const commandStart = validWorkflow.indexOf(
+      `      - run: ${command}\n`,
+      testJobStart,
+    );
+    const nextJobStart = validWorkflow.indexOf("  image:\n", testJobStart);
+
+    assert.ok(commandStart >= testJobStart && commandStart < nextJobStart);
+    assertRejected(
+      validWorkflow.slice(0, commandStart) +
+        validWorkflow.slice(commandStart + `      - run: ${command}\n`.length),
+      "test-job-steps",
+    );
+  }
+
+  const testJobStart = validWorkflow.indexOf("  test:\n");
+  const testJobEnd = validWorkflow.indexOf("  image:\n", testJobStart);
+  const testJob = validWorkflow.slice(testJobStart, testJobEnd);
+
+  for (const [from, to] of [
+    [
+      "      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4",
+      "      - uses: actions/setup-node@v4",
+    ],
+    ["node-version: 22", "node-version: 20"],
+    ["cache: npm", "cache: yarn"],
+  ]) {
+    assert.ok(testJob.includes(from));
+    assertRejected(
+      validWorkflow.slice(0, testJobStart) +
+        testJob.replace(from, to) +
+        validWorkflow.slice(testJobEnd),
+      "test-job-steps",
+    );
+  }
+});
+
+test("requires the exact serial needs graph so prerequisite failures block later jobs", () => {
+  for (const [from, to] of [
+    ["    needs: build\n    runs-on", "    runs-on"],
+    ["    needs: test\n  publish", "  publish"],
+    ["    needs: image\n    if:", "    if:"],
+  ]) {
+    assertRejected(workflowWith({ from, to }), "job-needs");
+  }
 });
 
 test("requires the build to test to image to publish chain", () => {
@@ -178,8 +283,8 @@ test("requires publish permissions to be exactly contents read and packages writ
 
 test("allows non-publish jobs to restate only their inherited contents read permission", () => {
   const workflowWithReadOnlyBuildPermission = workflowWith({
-    from: "  build: {}",
-    to: "  build:\n    permissions:\n      contents: read",
+    from: "  build:\n    runs-on",
+    to: "  build:\n    permissions:\n      contents: read\n    runs-on",
   });
 
   assert.deepEqual(resultFor(workflowWithReadOnlyBuildPermission), {
@@ -194,7 +299,10 @@ test("rejects non-publish job permission broadening", () => {
     "  build:\n    permissions:\n      actions: read",
   ]) {
     assertRejected(
-      workflowWith({ from: "  build: {}", to: replacement }),
+      workflowWith({
+        from: "  build:\n    runs-on",
+        to: replacement + "\n    runs-on",
+      }),
       "package-permissions",
     );
   }

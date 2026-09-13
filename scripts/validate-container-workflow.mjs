@@ -71,6 +71,64 @@ function hasRequiredNeeds(job, requiredNeed) {
   return needs.length === 1 && needs[0] === requiredNeed;
 }
 
+function hasActionStep(steps, action) {
+  return steps.some((step) => step?.uses === action);
+}
+
+function hasRunStep(steps, command) {
+  return steps.some((step) => step?.run === command);
+}
+
+function hasNodeSetupStep(steps) {
+  return steps.some(
+    (step) =>
+      step?.uses === "actions/setup-node@v4" &&
+      step?.with?.["node-version"] === 22 &&
+      step?.with?.cache === "npm",
+  );
+}
+
+function hasBuildArtifactStep(steps) {
+  return steps.some(
+    (step) =>
+      step?.uses === "actions/upload-artifact@v4" &&
+      step?.with?.path === "dist/" &&
+      step?.with?.["if-no-files-found"] === "error",
+  );
+}
+
+function hasRequiredBuildSteps(job) {
+  const steps = asList(job?.steps);
+
+  return (
+    hasActionStep(steps, "actions/checkout@v4") &&
+    hasNodeSetupStep(steps) &&
+    hasRunStep(steps, "npm ci") &&
+    hasRunStep(steps, "npm run build") &&
+    hasBuildArtifactStep(steps)
+  );
+}
+
+function hasRequiredTestSteps(job) {
+  const steps = asList(job?.steps);
+  const requiredCommands = [
+    "npm ci",
+    "npx playwright install --with-deps chromium",
+    "npm run format:check",
+    "npm run lint",
+    "npm run test:unit",
+    "npm run test:coverage",
+    "npm run test:e2e",
+    "npm run build",
+  ];
+
+  return (
+    hasActionStep(steps, "actions/checkout@v4") &&
+    hasNodeSetupStep(steps) &&
+    requiredCommands.every((command) => hasRunStep(steps, command))
+  );
+}
+
 function hasSafePublishGuard(job) {
   const condition = job?.if;
 
@@ -201,6 +259,14 @@ export function validateWorkflow(workflow) {
     )
   ) {
     errors.push("job-needs");
+  }
+
+  if (!hasRequiredBuildSteps(jobs.build)) {
+    errors.push("build-job-steps");
+  }
+
+  if (!hasRequiredTestSteps(jobs.test)) {
+    errors.push("test-job-steps");
   }
 
   if (!hasRequiredTriggers(workflow)) {
