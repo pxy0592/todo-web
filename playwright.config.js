@@ -6,6 +6,8 @@ export default defineConfig({
     "**/smoke.test.js",
     "**/todo-model.test.js",
     "**/todo-storage.test.js",
+    "**/container-*.test.js",
+    "**/compose-*.test.js",
   ],
   use: {
     baseURL: "http://127.0.0.1:4173",

@@ -1,8 +1,10 @@
+# containerized-delivery Specification
+
 ## Purpose
 
 为 Todo Web 应用提供可复现的容器化交付路径，使开发者能够通过 Docker Compose 启动应用，并使 GitHub Actions 在验证通过后构建和发布可部署镜像。
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Build a runnable application image
 
@@ -44,7 +46,7 @@
 #### Scenario: Successful workflow chain
 
 - **WHEN** 工作流在受支持的 push 或 pull request 事件上触发，且编译、测试、镜像构建均成功
-- **THEN** 阶段按编译 → 测试 → 镜像构建 → 镜像上传顺序完成，且镜像被发布到 GHCR
+- **THEN** 阶段按编译 → 测试 → 镜像构建 → 镜像上传的依赖顺序完成；仅当事件是允许发布的默认分支 push 时，镜像被发布到 GHCR，pull request 不执行镜像上传
 
 #### Scenario: Failed prerequisite blocks downstream stage
 

@@ -4,19 +4,27 @@
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 4173",
-    "test:unit": "node --test tests/todo-*.test.js tests/smoke.test.js",
-    "test:coverage": "node --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=90 --test-coverage-functions=90 --test tests/todo-*.test.js tests/smoke.test.js",
+    "test:unit": "node --test tests/todo-*.test.js tests/smoke.test.js tests/serve.test.js",
+    "test:coverage": "node --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=90 --test-coverage-functions=90 --test tests/todo-*.test.js tests/smoke.test.js tests/serve.test.js tests/container-workflow.test.js tests/container-validation.test.js",
     "test:e2e": "playwright test",
     "build": "node scripts/build.mjs",
     "format:check": "prettier --check .",
     "check": "npm run format:check && npm run lint && npm run test:unit && npm run build",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "validate:compose": "node --test tests/compose-config.test.js",
+    "test:compose-runtime": "node --test tests/compose-runtime.test.js",
+    "test:container-smoke": "node --test tests/container-smoke.test.js",
+    "validate:container-workflow": "node scripts/validate-container-workflow.mjs",
+    "test:container-workflow": "node --test tests/container-workflow.test.js",
+    "test:container-validation": "node --test tests/container-validation.test.js",
+    "validate:container": "node scripts/validate-container.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.55.0",
     "eslint": "^10.10.0",
     "globals": "^17.12.0",
-    "prettier": "^3.6.2"
+    "prettier": "^3.6.2",
+    "yaml": "^2.9.1"
   }
 }

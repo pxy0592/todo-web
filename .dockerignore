@@ -1,0 +1,10 @@
+.git/
+node_modules/
+dist/
+test-results/
+.superpowers/
+docs/openspec/
+docs/superpowers/
+.env
+.env.*
+*.log
