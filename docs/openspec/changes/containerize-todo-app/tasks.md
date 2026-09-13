@@ -6,7 +6,7 @@
 
 ## 2. Docker Compose Runtime
 
-- [ ] 2.1 Create root `compose.yaml` with one `todo-web` service using `build: .` and image name `todo-web:local`; verify `docker compose config` resolves successfully and shows the expected build definition and service.
+- [x] 2.1 Create root `compose.yaml` with one `todo-web` service using `build: .` and image name `todo-web:local`; verify `docker compose config` resolves successfully and shows the expected build definition and service.
 - [ ] 2.2 Add `${TODO_WEB_PORT:-4173}:4173` host-to-container port mapping and keep the service independent of host Node.js/Python; verify `TODO_WEB_PORT=4317 docker compose config` renders `4317:4173` and `docker compose up --build -d` serves the page on the configured host port.
 - [ ] 2.3 Verify Compose lifecycle behavior and resource scope with `docker compose down`; confirm the application container is removed while unrelated containers/resources are not targeted.
 
