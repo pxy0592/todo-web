@@ -67,6 +67,30 @@ jobs:
       - run: npm run build
   image:
     needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/\${{ github.repository }}
+          tags: |
+            type=sha,format=long,prefix=sha-
+            type=raw,value=latest,enable=\${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: \${{ steps.meta.outputs.tags }}
+          labels: \${{ steps.meta.outputs.labels }}
+          outputs: type=docker,dest=/tmp/todo-web-image.tar
+          push: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: todo-web-image-\${{ github.sha }}
+          path: /tmp/todo-web-image.tar
+          if-no-files-found: error
   publish:
     needs: image
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -161,10 +185,115 @@ test("requires all existing verification gates after a successful build", () => 
   }
 });
 
+function workflowWithImage({ from, to }) {
+  const imageJobStart = validWorkflow.indexOf("  image:\n");
+  const imageJobEnd = validWorkflow.indexOf("  publish:\n", imageJobStart);
+  const imageJob = validWorkflow.slice(imageJobStart, imageJobEnd);
+
+  assert.ok(imageJob.includes(from), `missing image fixture text: ${from}`);
+  return (
+    validWorkflow.slice(0, imageJobStart) +
+    imageJob.replace(from, to) +
+    validWorkflow.slice(imageJobEnd)
+  );
+}
+
+function workflowWithPublish({ from, to }) {
+  const publishJobStart = validWorkflow.indexOf("  publish:\n");
+  const publishJob = validWorkflow.slice(publishJobStart);
+
+  assert.ok(publishJob.includes(from), `missing publish fixture text: ${from}`);
+  return validWorkflow.slice(0, publishJobStart) + publishJob.replace(from, to);
+}
+
+test("requires an uncredentialed Buildx image artifact job with traceable metadata", () => {
+  for (const [from, to] of [
+    ["docker/setup-buildx-action@v3", "docker/setup-buildx-action@v2"],
+    ["docker/metadata-action@v5", "docker/metadata-action@v4"],
+    [
+      "images: ghcr.io/${{ github.repository }}",
+      "images: ghcr.io/example/todo-web",
+    ],
+    ["type=sha,format=long,prefix=sha-", "type=sha,format=short,prefix=sha-"],
+    [
+      "type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+      "type=raw,value=latest,enable=true",
+    ],
+    ["file: ./Dockerfile", "file: ./Containerfile"],
+    ["tags: ${{ steps.meta.outputs.tags }}", "tags: todo-web:latest"],
+    ["labels: ${{ steps.meta.outputs.labels }}", "labels: ignored"],
+    [
+      "outputs: type=docker,dest=/tmp/todo-web-image.tar",
+      "outputs: type=registry",
+    ],
+    ["push: false", "push: true"],
+    ["name: todo-web-image-${{ github.sha }}", "name: todo-web-image"],
+    ["path: /tmp/todo-web-image.tar", "path: /tmp/image.tar"],
+  ]) {
+    assertRejected(workflowWithImage({ from, to }), "image-job-steps");
+  }
+
+  assertRejected(
+    workflowWithImage({
+      from: "      - uses: docker/setup-buildx-action@v3\n",
+      to: "",
+    }),
+    "image-job-steps",
+  );
+});
+
+test("requires image artifact uploads to fail when no tarball is exported", () => {
+  const imageArtifactStart = validWorkflow.indexOf(
+    "          name: todo-web-image-${{ github.sha }}",
+  );
+  const imageArtifactEnd = validWorkflow.indexOf(
+    "  publish:\n",
+    imageArtifactStart,
+  );
+  const imageArtifact = validWorkflow.slice(
+    imageArtifactStart,
+    imageArtifactEnd,
+  );
+
+  assert.ok(imageArtifact.includes("if-no-files-found: error"));
+  assertRejected(
+    validWorkflow.slice(0, imageArtifactStart) +
+      imageArtifact.replace(
+        "if-no-files-found: error",
+        "if-no-files-found: warn",
+      ) +
+      validWorkflow.slice(imageArtifactEnd),
+    "image-job-steps",
+  );
+});
+
+test("rejects registry login and direct image push steps", () => {
+  for (const [from, to] of [
+    [
+      "      - uses: docker/setup-buildx-action@v3",
+      "      - uses: docker/login-action@v3\n        with:\n          registry: ghcr.io\n      - uses: docker/setup-buildx-action@v3",
+    ],
+    [
+      "      - uses: docker/setup-buildx-action@v3",
+      "      - uses: docker/login-action@v4\n        with:\n          registry: ghcr.io\n      - uses: docker/setup-buildx-action@v3",
+    ],
+    [
+      "      - uses: docker/setup-buildx-action@v3",
+      "      - uses: docker/setup-buildx-action@v3\n      - run: docker login ghcr.io",
+    ],
+    [
+      "          push: false",
+      "          push: false\n      - run: docker push ghcr.io/example/todo-web:latest",
+    ],
+  ]) {
+    assertRejected(workflowWithImage({ from, to }), "image-job-steps");
+  }
+});
+
 test("requires the exact serial needs graph so prerequisite failures block later jobs", () => {
   for (const [from, to] of [
     ["    needs: build\n    runs-on", "    runs-on"],
-    ["    needs: test\n  publish", "  publish"],
+    ["    needs: test\n    runs-on", "    runs-on"],
     ["    needs: image\n    if:", "    if:"],
   ]) {
     assertRejected(workflowWith({ from, to }), "job-needs");
@@ -190,10 +319,10 @@ test("rejects additional needs outside the exact chain", () => {
 });
 
 test("requires all four named jobs", () => {
-  const workflowWithoutImage = workflowWith({
-    from: "  image:\n    needs: test\n",
-    to: "",
-  });
+  const imageJobStart = validWorkflow.indexOf("  image:\n");
+  const imageJobEnd = validWorkflow.indexOf("  publish:\n", imageJobStart);
+  const workflowWithoutImage =
+    validWorkflow.slice(0, imageJobStart) + validWorkflow.slice(imageJobEnd);
 
   assertRejected(workflowWithoutImage, "required-jobs");
 });
@@ -213,7 +342,7 @@ test("requires main push and pull request triggers", () => {
 });
 
 test("accepts the canonical publish guard with whitespace and parentheses", () => {
-  const workflowWithParenthesizedGuard = workflowWith({
+  const workflowWithParenthesizedGuard = workflowWithPublish({
     from: "github.event_name == 'push' && github.ref == 'refs/heads/main'",
     to: " ( github.event_name == 'push' ) && (( github.ref == 'refs/heads/main' )) ",
   });
@@ -231,7 +360,7 @@ test("rejects non-canonical publish guards", () => {
     "(github.event_name == 'push' && github.ref == 'refs/heads/main'(",
   ]) {
     assertRejected(
-      workflowWith({
+      workflowWithPublish({
         from: "github.event_name == 'push' && github.ref == 'refs/heads/main'",
         to: condition,
       }),

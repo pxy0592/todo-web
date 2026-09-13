@@ -129,6 +129,52 @@ function hasRequiredTestSteps(job) {
   );
 }
 
+function hasImageArtifactStep(steps) {
+  return steps.some(
+    (step) =>
+      step?.uses === "actions/upload-artifact@v4" &&
+      step?.with?.name === "todo-web-image-${{ github.sha }}" &&
+      step?.with?.path === "/tmp/todo-web-image.tar" &&
+      step?.with?.["if-no-files-found"] === "error",
+  );
+}
+
+function hasRequiredImageSteps(job) {
+  const steps = asList(job?.steps);
+  const metadataStep = steps.find(
+    (step) => step?.uses === "docker/metadata-action@v5",
+  );
+  const buildStep = steps.find(
+    (step) => step?.uses === "docker/build-push-action@v6",
+  );
+  const tags = metadataStep?.with?.tags;
+
+  return (
+    hasActionStep(steps, "actions/checkout@v4") &&
+    hasActionStep(steps, "docker/setup-buildx-action@v3") &&
+    metadataStep?.id === "meta" &&
+    metadataStep?.with?.images === "ghcr.io/${{ github.repository }}" &&
+    typeof tags === "string" &&
+    tags.includes("type=sha,format=long,prefix=sha-") &&
+    tags.includes(
+      "type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}",
+    ) &&
+    buildStep?.with?.context === "." &&
+    buildStep?.with?.file === "./Dockerfile" &&
+    buildStep?.with?.tags === "${{ steps.meta.outputs.tags }}" &&
+    buildStep?.with?.labels === "${{ steps.meta.outputs.labels }}" &&
+    buildStep?.with?.outputs === "type=docker,dest=/tmp/todo-web-image.tar" &&
+    buildStep?.with?.push === false &&
+    hasImageArtifactStep(steps) &&
+    !steps.some(
+      (step) =>
+        step?.uses?.startsWith("docker/login-action@") ||
+        (typeof step?.run === "string" &&
+          /\bdocker\s+(?:login|push)\b/.test(step.run)),
+    )
+  );
+}
+
 function hasSafePublishGuard(job) {
   const condition = job?.if;
 
@@ -267,6 +313,10 @@ export function validateWorkflow(workflow) {
 
   if (!hasRequiredTestSteps(jobs.test)) {
     errors.push("test-job-steps");
+  }
+
+  if (!hasRequiredImageSteps(jobs.image)) {
+    errors.push("image-job-steps");
   }
 
   if (!hasRequiredTriggers(workflow)) {
