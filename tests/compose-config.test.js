@@ -1,22 +1,36 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
+import { parse } from "yaml";
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
 
-function readComposeConfig(environment = {}) {
+function readComposeSource() {
+  return parse(readFileSync(path.join(projectRoot, "compose.yaml"), "utf8"));
+}
+
+function readComposeConfig(environmentOverrides = {}) {
+  const environment = { ...process.env, ...environmentOverrides };
+
+  for (const [name, value] of Object.entries(environmentOverrides)) {
+    if (value === undefined) {
+      delete environment[name];
+    }
+  }
+
   const result = spawnSync(
     "docker",
     ["compose", "config", "--format", "json"],
     {
       cwd: projectRoot,
       encoding: "utf8",
-      env: { ...process.env, ...environment },
+      env: environment,
     },
   );
 
@@ -25,8 +39,19 @@ function readComposeConfig(environment = {}) {
   return JSON.parse(result.stdout);
 }
 
+function assertComposeSourceContract(config) {
+  assert.deepEqual(Object.keys(config.services), ["todo-web"]);
+  assert.equal(config.volumes, undefined);
+
+  const service = config.services["todo-web"];
+  assert.equal(service.volumes, undefined);
+  assert.equal(service.privileged, undefined);
+  assert.equal(service.network_mode, undefined);
+}
+
 function assertTodoWebService(config, publishedPort) {
   assert.deepEqual(Object.keys(config.services), ["todo-web"]);
+  assert.equal(config.volumes, undefined);
 
   const service = config.services["todo-web"];
   assert.equal(path.resolve(service.build.context), projectRoot);
@@ -41,10 +66,16 @@ function assertTodoWebService(config, publishedPort) {
     },
   ]);
   assert.equal(service.volumes, undefined);
+  assert.equal(service.privileged, undefined);
+  assert.equal(service.network_mode, undefined);
 }
 
+test("declares only the unprivileged single-service Compose source contract", () => {
+  assertComposeSourceContract(readComposeSource());
+});
+
 test("renders the default single-service Compose runtime contract", () => {
-  assertTodoWebService(readComposeConfig(), 4173);
+  assertTodoWebService(readComposeConfig({ TODO_WEB_PORT: undefined }), 4173);
 });
 
 test("renders TODO_WEB_PORT as the published HTTP port", () => {
