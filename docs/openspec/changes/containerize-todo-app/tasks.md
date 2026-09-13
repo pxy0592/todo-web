@@ -15,7 +15,7 @@
 - [x] 3.1 Create `.github/workflows/container.yml` with separate `build`, `test`, `image`, and `publish` jobs; configure `test.needs: build`, `image.needs: test`, and `publish.needs: image`, and verify the workflow YAML parses and its dependency graph is statically correct.
 - [x] 3.2 Implement the `build` and `test` jobs for supported push/pull-request events; run the existing Node installation, format, lint, unit, coverage, E2E, and static build checks, and verify a failed prerequisite prevents dependent jobs from running.
 - [x] 3.3 Implement the `image` job to build the Docker image only after tests pass and produce commit-addressable tags; verify the job references the repository Dockerfile and metadata action/CLI configuration without publishing credentials.
-- [ ] 3.4 Implement the `publish` job for permitted push events using GHCR (`ghcr.io/${{ github.repository }}`), `GITHUB_TOKEN`, and minimum `packages: write` permissions; verify pull-request workflows do not upload images and no long-lived secret is hard-coded.
+- [x] 3.4 Implement the `publish` job for permitted push events using GHCR (`ghcr.io/${{ github.repository }}`), `GITHUB_TOKEN`, and minimum `packages: write` permissions; verify pull-request workflows do not upload images and no long-lived secret is hard-coded.
 - [x] 3.5 Generate immutable commit-SHA tags and a stable default-branch tag such as `latest`; verify the workflow metadata configuration produces both the SHA tag and the default-branch alias under the repository-owned GHCR image.
 
 ## 4. Verification and Documentation
