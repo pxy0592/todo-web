@@ -1,0 +1,31 @@
+name: Container delivery
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps: []
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    steps: []
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    steps: []
+  publish:
+    needs: image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    runs-on: ubuntu-latest
+    steps: []

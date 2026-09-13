@@ -12,7 +12,8 @@
     "check": "npm run format:check && npm run lint && npm run test:unit && npm run build",
     "lint": "eslint .",
     "validate:compose": "node --test tests/compose-config.test.js",
-    "test:compose-runtime": "node --test tests/compose-runtime.test.js"
+    "test:compose-runtime": "node --test tests/compose-runtime.test.js",
+    "validate:container-workflow": "node scripts/validate-container-workflow.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
